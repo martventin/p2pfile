@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Analytics - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    <style>
+        .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px; }
+        .chart-card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .big-stat { font-size: 2.2rem; font-weight: 900; color: var(--primary-color); margin: 10px 0; }
+        .stat-label { opacity: 0.7; font-size: 0.85rem; text-transform: uppercase; font-weight: bold; }
+        canvas { width: 100% !important; height: 280px !important; }
+        .sync-btn { background: #e11d48; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        #sync-loader { display:none; position:fixed; top:20px; right:20px; background:#2563eb; color:#fff; padding:10px 20px; border-radius:30px; z-index:9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+    <div id="sync-loader">☁️ Fetching Live Data...</div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="forceToggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem;">Business Insights & Graphs</div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h1 style="margin: 0; font-size: 1.6rem;">Shop Performance</h1>
+                    <p style="margin: 5px 0 0 0; opacity: 0.8;">Live analysis of your CSC & Banking tasks.</p>
+                </div>
+                <button class="sync-btn" onclick="fetchDataAndDraw()">🔄 Refresh Graphs</button>
+            </div>
+
+            <div class="analytics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                <div class="chart-card">
+                    <div class="stat-label">Total Turnover</div>
+                    <div class="big-stat" id="total-revenue">₹ 0</div>
+                </div>
+                <div class="chart-card">
+                    <div class="stat-label">Net Profit</div>
+                    <div class="big-stat" style="color: #059669;" id="total-profit">₹ 0</div>
+                </div>
+                <div class="chart-card">
+                    <div class="stat-label">Profitability</div>
+                    <div class="big-stat" style="color: #6366f1;" id="avg-margin">0%</div>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="chart-card">
+                    <div style="font-weight:bold; margin-bottom:15px;">📊 Service Popularity (Volume)</div>
+                    <canvas id="serviceChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div style="font-weight:bold; margin-bottom:15px;">📈 Revenue vs Profit (Last 7 Days)</div>
+                    <canvas id="growthChart"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="chart-card">
+                    <div style="font-weight:bold; margin-bottom:15px;">💰 Most Profitable Services (Total ₹)</div>
+                    <canvas id="profitabilityChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let myCharts = {};
+        let db = null;
+        let p2pClient = null;
+
+        function showLoader(show) {
+            document.getElementById('sync-loader').style.display = show ? 'block' : 'none';
+        }
+
+        function forceToggleSidebar() {
+            document.body.classList.toggle('desktop-sidebar-hidden');
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            setTimeout(() => location.reload(), 100); 
+        }
+        if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+
+        async function fetchDataAndDraw() {
+            if (!db) {
+                alert("Database not connected. Please refresh the page.");
+                return;
+            }
+
+            showLoader(true);
+            try {
+                const result = await db.getAllCustomers(1000);
+                if (result.success && result.customers) {
+                    const transactions = result.customers.map(customer => ({
+                        name: customer.firstName + ' ' + customer.lastName,
+                        service: customer.service || 'General',
+                        amount: parseFloat(customer.amount) || 0,
+                        profit: parseFloat(customer.profit) || 0,
+                        date: customer.createdAt || new Date().toISOString().split('T')[0]
+                    }));
+                    
+                    const activeData = transactions.filter(t => t.name !== "DELETED");
+                    processData(activeData);
+                } else {
+                    alert("No data found in database");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Connection Error! " + error.message);
+            }
+            showLoader(false);
+        }
+
+        function processData(data) {
+            if (!data || data.length === 0) return;
+
+            let totalRev = 0, totalProf = 0;
+            let serviceCounts = {}, serviceProfits = {}, dailyData = {};
+
+            data.forEach(t => {
+                let rev = parseFloat(t.amount) || 0;
+                let prof = parseFloat(t.profit) || 0;
+                let service = t.service || "Other";
+                let date = t.date ? t.date.split(' ')[0] : "No Date";
+
+                totalRev += rev;
+                totalProf += prof;
+
+                serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+                serviceProfits[service] = (serviceProfits[service] || 0) + prof;
+
+                if(!dailyData[date]) dailyData[date] = { rev: 0, prof: 0 };
+                dailyData[date].rev += rev;
+                dailyData[date].prof += prof;
+            });
+
+            document.getElementById('total-revenue').innerText = "₹ " + totalRev.toLocaleString('en-IN');
+            document.getElementById('total-profit').innerText = "₹ " + totalProf.toLocaleString('en-IN');
+            document.getElementById('avg-margin').innerText = (totalRev > 0 ? ((totalProf / totalRev) * 100).toFixed(1) : 0) + "%";
+
+            // Draw Charts
+            drawChart('serviceChart', 'doughnut', Object.keys(serviceCounts), Object.values(serviceCounts), 'Tasks Done', ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4']);
+            
+            const days = Object.keys(dailyData).slice(-7);
+            drawGrowthChart(days, dailyData);
+
+            const sortedSvc = Object.keys(serviceProfits).sort((a,b) => serviceProfits[b] - serviceProfits[a]);
+            drawChart('profitabilityChart', 'bar', sortedSvc, sortedSvc.map(s => serviceProfits[s]), 'Total Profit (₹)', '#10b981', 'y');
+        }
+
+        function drawChart(id, type, labels, data, label, colors, axis = 'x') {
+            const ctx = document.getElementById(id).getContext('2d');
+            if(myCharts[id]) myCharts[id].destroy();
+            myCharts[id] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{ label: label, data: data, backgroundColor: colors, borderRadius: 5 }]
+                },
+                options: { indexAxis: axis, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: type === 'doughnut' } } }
+            });
+        }
+
+        function drawGrowthChart(labels, dailyData) {
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            if(myCharts['growthChart']) myCharts['growthChart'].destroy();
+            myCharts['growthChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Revenue', data: labels.map(l => dailyData[l].rev), backgroundColor: '#3b82f6' },
+                        { label: 'Profit', data: labels.map(l => dailyData[l].prof), backgroundColor: '#10b981' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        window.addEventListener('load', async () => {
+            p2pClient = new P2PClient();
+            const p2pResult = await p2pClient.connectToHost(SERVER_URL);
+            
+            if (p2pResult.success) {
+                console.log('✓ Connected to P2P');
+                p2pClient.startAutoSync(5000);
+                db = new DatabaseAPI(SERVER_URL, p2pClient);
+                fetchDataAndDraw();
+            } else {
+                console.warn('P2P connection failed');
+                db = new DatabaseAPI(SERVER_URL);
+                fetchDataAndDraw();
+            }
+        });
+    </script>
+</body>
+</html>

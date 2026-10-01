@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UtilityPro P2P Network</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-icon {
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .status-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status-value {
+            color: #666;
+        }
+        
+        .status-value.connected {
+            color: #27ae60;
+            font-weight: 600;
+        }
+        
+        .status-value.error {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-info {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #2980b9;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .devices-list {
+            margin-top: 20px;
+        }
+        
+        .device-item {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .device-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .device-info {
+            color: #666;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        
+        .log-box {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 4px 0;
+        }
+        
+        .log-error {
+            color: #ff6b6b;
+        }
+        
+        .log-success {
+            color: #51cf66;
+        }
+        
+        .log-info {
+            color: #74c0fc;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="card">
+            <h1>
+                <span class="header-icon">📡</span>
+                UtilityPro P2P Network
+            </h1>
+            <p class="subtitle">Direct Peer-to-Peer Communication on Local WiFi</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid-2">
+            <!-- Left Column -->
+            <div>
+                <!-- Connection Status -->
+                <div class="card">
+                    <h2>📍 Connection Status</h2>
+                    <div class="status-box" id="statusBox">
+                        <div class="status-item">
+                            <span class="status-label">Status:</span>
+                            <span class="status-value error" id="connStatus">⚫ Disconnected</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Device ID:</span>
+                            <span class="status-value" id="deviceId">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Host URL:</span>
+                            <span class="status-value" id="hostUrl">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Last Sync:</span>
+                            <span class="status-value" id="lastSync">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Auto-Sync:</span>
+                            <span class="status-value" id="autoSync">❌ Inactive</span>
+                        </div>
+                    </div>
+
+                    <div class="buttons">
+                        <button class="btn-primary" onclick="discoverAndConnect()">🔍 Discover & Connect</button>
+                        <button class="btn-success" onclick="manualConnect()">🔗 Manual Connect</button>
+                    </div>
+
+                    <div class="input-group" id="manualInputs" style="display: none;">
+                        <input type="text" id="manualIP" placeholder="192.168.x.x" value="192.168.1">
+                        <button class="btn-primary" onclick="connectToManualIP()">Connect</button>
+                    </div>
+
+                    <div class="buttons">
+                        <button class="btn-info" onclick="syncNow()">🔄 Sync Now</button>
+                        <button class="btn-danger" onclick="disconnect()">❌ Disconnect</button>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card">
+                    <h2>⚙️ Actions</h2>
+                    <div class="buttons">
+                        <button class="btn-info" onclick="getDeviceInfo()">ℹ️ Device Info</button>
+                        <button class="btn-info" onclick="listDevices()">👥 Connected Devices</button>
+                    </div>
+                    <button class="btn-success" style="width: 100%;" onclick="testBroadcast()">📢 Test Broadcast</button>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div>
+                <!-- Connected Devices -->
+                <div class="card">
+                    <h2>👥 Connected Devices</h2>
+                    <div class="devices-list" id="devicesList">
+                        <p style="color: #999; text-align: center; padding: 20px;">
+                            No devices connected yet
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="card">
+                    <h2>📋 Activity Log</h2>
+                    <div class="log-box" id="logBox">
+                        <div class="log-entry log-info">Ready to connect...</div>
+                    </div>
+                    <button onclick="clearLog()" style="margin-top: 10px; width: 100%;">Clear Log</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="p2p-client.js"></script>
+    <script>
+        // Global P2P client
+        let p2p = null;
+        const maxLogEntries = 50;
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            p2p = new P2PClient();
+            updateStatus();
+            log('✓ P2P Client initialized', 'success');
+        });
+
+        // Discover and connect to host
+        async function discoverAndConnect() {
+            const statusEl = document.getElementById('connStatus');
+            statusEl.textContent = '🟡 Discovering...';
+            log('🔍 Searching for P2P hosts...', 'info');
+
+            try {
+                const hosts = await p2p.discoverHosts('192.168.1');
+
+                if (hosts.length === 0) {
+                    // Try other common subnets
+                    const hosts2 = await p2p.discoverHosts('192.168.0');
+                    if (hosts2.length > 0) {
+                        hosts.push(...hosts2);
+                    }
+                }
+
+                if (hosts.length > 0) {
+                    log(`✅ Found ${hosts.length} host(s)`, 'success');
+                    
+                    // Connect to first host
+                    const result = await p2p.connectToHost(hosts[0].url);
+                    
+                    if (result.success) {
+                        log(`✓ Connected to ${hosts[0].url}`, 'success');
+                        p2p.startAutoSync(5000);
+                        updateStatus();
+                    } else {
+                        log(`✗ Connection failed: ${result.error}`, 'error');
+                    }
+                } else {
+                    log('✗ No hosts found. Is the server running?', 'error');
+                }
+            } catch (error) {
+                log(`✗ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Manual connect
+        function manualConnect() {
+            const inputs = document.getElementById('manualInputs');
+            inputs.style.display = inputs.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        // Connect to manual IP
+        async function connectToManualIP() {
+            const ip = document.getElementById('manualIP').value;
+            const url = `http://${ip}:3000`;
+            
+            log(`🔗 Connecting to ${url}...`, 'info');
+            const result = await p2p.connectToHost(url);
+            
+            if (result.success) {
+                log(`✓ Connected!`, 'success');
+                p2p.startAutoSync(5000);
+                updateStatus();
+            } else {
+                log(`✗ Failed: ${result.error}`, 'error');
+            }
+        }
+
+        // Sync now
+        async function syncNow() {
+            log('🔄 Syncing...', 'info');
+            const result = await p2p.syncDatabase();
+            
+            if (result.success) {
+                log(`✓ Synced ${result.changeCount} changes`, 'success');
+            } else {
+                log(`✗ Sync failed: ${result.error}`, 'error');
+            }
+            updateStatus();
+        }
+
+        // Disconnect
+        function disconnect() {
+            p2p.disconnect();
+            log('Disconnected from host', 'info');
+            updateStatus();
+        }
+
+        // Get device info
+        async function getDeviceInfo() {
+            const info = await p2p.getDeviceInfo();
+            if (info) {
+                log(`Device: ${JSON.stringify(info, null, 2)}`, 'info');
+            }
+        }
+
+        // List connected devices
+        async function listDevices() {
+            log('🔍 Loading device list...', 'info');
+            const devices = await p2p.getConnectedDevices();
+            
+            const lista = document.getElementById('devicesList');
+            
+            if (devices.length === 0) {
+                lista.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No devices connected</p>';
+            } else {
+                lista.innerHTML = devices.map(device => `
+                    <div class="device-item">
+                        <div class="device-name">🖥️ ${device.deviceName || 'Unknown'}</div>
+                        <div class="device-info">ID: ${device.deviceId}</div>
+                        <div class="device-info">IP: ${device.ip || 'N/A'}</div>
+                        <div class="device-info">Role: ${device.role || 'CLIENT'}</div>
+                    </div>
+                `).join('');
+            }
+            
+            log(`✓ Loaded ${devices.length} device(s)`, 'success');
+        }
+
+        // Test broadcast
+        async function testBroadcast() {
+            log('📢 Sending broadcast message...', 'info');
+            await p2p.broadcast({
+                type: 'TEST',
+                message: 'Hello from P2P Network!',
+                timestamp: new Date().toLocaleString()
+            });
+            log('✓ Broadcast sent', 'success');
+        }
+
+        // Update status display
+        function updateStatus() {
+            const status = p2p.getStatus();
+            
+            document.getElementById('connStatus').innerHTML = 
+                status.isConnected ? 
+                '🟢 Connected' : 
+                '🔴 Disconnected';
+            document.getElementById('connStatus').className = 
+                'status-value ' + (status.isConnected ? 'connected' : 'error');
+            
+            document.getElementById('deviceId').textContent = status.deviceId;
+            document.getElementById('hostUrl').textContent = status.hostURL || '-';
+            document.getElementById('lastSync').textContent = status.lastSync;
+            document.getElementById('autoSync').textContent = status.autoSyncActive ? 
+                '✅ Active' : '❌ Inactive';
+        }
+
+        // Logging function
+        function log(message, type = 'info') {
+            const logBox = document.getElementById('logBox');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-' + type;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            
+            logBox.appendChild(entry);
+            
+            // Keep only last X entries
+            while (logBox.children.length > maxLogEntries) {
+                logBox.removeChild(logBox.firstChild);
+            }
+            
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Clear log
+        function clearLog() {
+            document.getElementById('logBox').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        // Auto-update status every second
+        setInterval(updateStatus, 1000);
+    </script>
+</body>
+</html>

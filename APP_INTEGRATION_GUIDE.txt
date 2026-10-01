@@ -1,0 +1,399 @@
+APP-WIDE P2P INTEGRATION GUIDE
+===============================
+
+All pages in UtilityPro now use P2P SQLite with automatic sync across devices.
+
+
+FILE STRUCTURE & LOAD ORDER
+============================
+
+Every HTML file should have this order in <head> or before </body>:
+
+1. Sidebar (always first)
+   <script src="sidebar.js"></script>
+
+2. Configuration (before anything else)
+   <script src="config.js"></script>
+
+3. P2P Client
+   <script src="p2p-client.js"></script>
+
+4. Database API
+   <script src="db-api.js"></script>
+
+5. Your page script
+   <script>
+       // Your code here
+   </script>
+
+
+EXAMPLE STRUCTURE
+=================
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    
+    <main class="main-content">
+        <!-- Your content here -->
+    </main>
+
+    <!-- Scripts in order -->
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    
+    <script>
+        // Initialize
+        let db = null;
+        let p2pClient = new P2PClient();
+        
+        window.addEventListener('load', async () => {
+            // Connect to P2P server
+            const result = await p2pClient.connectToHost(SERVER_URL);
+            if (result.success) {
+                console.log('✓ Connected to P2P');
+                p2pClient.startAutoSync(5000);
+                
+                // Initialize database API with P2P
+                db = new DatabaseAPI(SERVER_URL, p2pClient);
+                
+                // Load data
+                await loadData();
+            } else {
+                alert('Could not connect to P2P server');
+            }
+        });
+        
+        async function loadData() {
+            const result = await db.getAllCustomers();
+            if (result.success) {
+                console.log('Customers:', result.customers);
+                // Display data...
+            }
+        }
+        
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+        
+        // Apply saved theme
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
+</body>
+</html>
+
+
+COMMON OPERATIONS
+=================
+
+// Get all customers
+const result = await db.getAllCustomers(100);
+if (result.success) {
+    console.log(result.customers);
+}
+
+// Search customers
+const search = await db.searchCustomers('john');
+console.log(search.results);
+
+// Save customer
+const customer = {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john@example.com',
+    phone: '9999999999'
+};
+const saved = await db.saveCustomer(customer);
+console.log(saved.customerId);
+
+// Update customer
+const updated = await db.updateCustomer(customerId, {
+    email: 'newemail@example.com'
+});
+
+// Delete customer
+const deleted = await db.deleteCustomer(customerId);
+
+// Get statistics
+const stats = await db.getStats();
+console.log(stats.totalCustomers);
+
+// Get P2P status
+const p2pStatus = await db.getP2PStatus();
+console.log(p2pStatus.isHost);
+
+
+HELPER METHODS
+==============
+
+// Format customer for display
+const formatted = DatabaseAPI.formatCustomer(customer);
+console.log(formatted.name, formatted.phone);
+
+// Validate email
+if (DatabaseAPI.isValidEmail(email)) {
+    // Save customer
+}
+
+// Validate phone
+if (DatabaseAPI.isValidPhone(phone)) {
+    // Save customer
+}
+
+// Format currency
+const price = DatabaseAPI.formatCurrency(1000);
+console.log(price); // ₹1,000.00
+
+
+ERROR HANDLING
+==============
+
+try {
+    const result = await db.saveCustomer(data);
+    
+    if (result.success) {
+        console.log('✓ Saved:', result.customerId);
+        // Show success message
+    } else {
+        console.error('✗ Error:', result.error);
+        // Show error message to user
+    }
+} catch (error) {
+    console.error('Connection error:', error);
+    alert('Could not reach server');
+}
+
+
+P2P FEATURES
+============
+
+// Check if connected to P2P
+if (p2pClient.isHostConnected()) {
+    console.log('Connected to P2P network');
+}
+
+// Get status
+const status = p2pClient.getStatus();
+console.log(status.deviceId);
+console.log(status.isConnected);
+console.log(status.lastSync);
+
+// Get connected devices
+const devices = await db.getConnectedDevices();
+devices.forEach(device => {
+    console.log(device.deviceName);
+});
+
+// Manual sync
+const syncResult = await p2pClient.syncDatabase();
+console.log(`Synced ${syncResult.changeCount} changes`);
+
+
+LOADING INDICATORS
+==================
+
+// Show loading state
+document.getElementById('loading').style.display = 'block';
+
+// Fetch data
+const result = await db.getAllCustomers();
+
+// Hide loading
+document.getElementById('loading').style.display = 'none';
+
+// Show result
+if (result.success) {
+    renderTable(result.customers);
+} else {
+    showError(result.error);
+}
+
+
+FORMS & VALIDATION
+==================
+
+// Form submission
+document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Get form data
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    // Validate
+    if (!DatabaseAPI.isValidPhone(data.phone)) {
+        alert('Invalid phone number');
+        return;
+    }
+    
+    if (!DatabaseAPI.isValidEmail(data.email)) {
+        alert('Invalid email');
+        return;
+    }
+    
+    // Save
+    const result = await db.saveCustomer(data);
+    
+    if (result.success) {
+        alert('✓ Saved!');
+        e.target.reset();
+        // Reload data
+        await loadData();
+    } else {
+        alert('✗ Error: ' + result.error);
+    }
+});
+
+
+DARK MODE SUPPORT
+=================
+
+CSS should have:
+
+.dark-mode {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --border-color: #333;
+}
+
+.dark-mode body {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.dark-mode input,
+.dark-mode textarea,
+.dark-mode select {
+    background: #2a2a2a;
+    color: var(--text-color);
+    border-color: #444;
+}
+
+
+MOBILE RESPONSIVE
+=================
+
+Use these media queries:
+
+@media (max-width: 768px) {
+    .desktop-only {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+Sidebar automatically handles mobile toggle.
+
+
+DEBUGGING
+=========
+
+Enable debug logs:
+- Open browser DevTools (F12)
+- Go to Console tab
+- All operations log automatically
+
+Check connection:
+console.log(p2pClient.getStatus());
+
+Check P2P info:
+const p2pInfo = await db.getP2PStatus();
+console.log(p2pInfo);
+
+Check server:
+const connected = await db.testConnection();
+console.log(connected ? 'Server OK' : 'Server Down');
+
+
+UPDATING SERVER URL
+===================
+
+If your server IP changes:
+1. Edit config.js line 8
+2. Change the IP address
+3. All pages auto-update!
+
+
+FILE CHECKLIST
+==============
+
+Required files for P2P to work:
+
+□ server.js - Backend Node.js server
+□ p2p-manager.js - P2P network management
+□ config.js - Configuration (SERVER_URL)
+□ p2p-client.js - Browser P2P client
+□ db-api.js - Universal database API
+□ sidebar.js - Navigation sidebar
+□ package.json - Node dependencies
+□ customers.db - SQLite database (auto-created)
+
+
+PERFORMANCE TIPS
+================
+
+1. Batch updates when possible
+2. Use debouncing for search
+3. Cache frequently accessed data
+4. Limit initial data load
+5. Use pagination for large datasets
+6. Minimize sync frequency for slow networks
+
+
+TROUBLESHOOTING
+===============
+
+Q: "SERVER_URL not defined"
+A: Make sure config.js is loaded before your script
+
+Q: "DatabaseAPI not defined"
+A: Load db-api.js before your script
+
+Q: "Changes not syncing"
+A: Check if p2pClient is connected: p2pClient.isHostConnected()
+
+Q: "Promise rejected" errors
+A: Check if server is running: npm start
+
+Q: "CORS errors"
+A: CORS is enabled in server. Check firewall allows port 3000
+
+
+NEXT STEPS
+==========
+
+1. Copy this structure to all HTML files
+2. Replace direct database calls with db API
+3. Test with multiple devices
+4. Monitor server logs for issues
+5. Adjust sync frequency as needed
+6. Create custom sync handlers if needed
+
+
+READY TO USE
+============
+
+All key components are set up:
+✓ P2P Server running
+✓ SQLite database ready
+✓ Auto-sync configured
+✓ Error handling built-in
+✓ Multi-device support
+
+Start building with the template above!

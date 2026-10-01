@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Information Form - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('✓ Service Worker registered - App works offline!'))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+    </script>
+    <style>
+        .form-container {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            max-width: 900px;
+            margin: 30px auto;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+            color: var(--text-color);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+            background: white;
+            color: #333;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            grid-column: 1 / -1;
+        }
+
+        .required::after {
+            content: " *";
+            color: #ff4444;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-submit {
+            background: var(--primary-color);
+            color: white;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-reset {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .file-input-wrapper input[type=file]:focus + .file-input-label,
+        .file-input-label:hover {
+            background: #efefef;
+            border-color: var(--primary-color);
+        }
+
+        .file-name {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 400;
+        }
+
+        .success-message {
+            display: none;
+            background: #4caf50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .error-message {
+            display: none;
+            background: #ff4444;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dark-mode .form-container {
+            background: rgba(42, 42, 42, 0.7);
+        }
+
+        .dark-mode .form-group input,
+        .dark-mode .form-group textarea,
+        .dark-mode .form-group select {
+            background: #333;
+            color: #e0e0e0;
+            border-color: #555;
+        }
+
+        .dark-mode .file-input-label {
+            background: #2a2a2a;
+            border-color: #555;
+        }
+
+        .dark-mode .file-input-label:hover {
+            background: #333;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 20px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .search-input-group {
+                grid-template-columns: 1fr;
+            }
+
+            .search-buttons {
+                flex-direction: column;
+            }
+
+            .btn-icon {
+                width: 100%;
+            }
+        }
+
+        /* Search Styles */
+        .search-section {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .dark-mode .search-section {
+            background: rgba(42, 42, 42, 0.7);
+        }
+
+        .search-input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .customer-search-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .customer-search-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .dark-mode .customer-search-input {
+            background: #333;
+            color: #e0e0e0;
+            border-color: #555;
+        }
+
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark-mode .search-suggestions {
+            background: #2a2a2a;
+            border-color: #555;
+        }
+
+        .search-suggestions.active {
+            display: block;
+        }
+
+        .suggestion-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .dark-mode .suggestion-item {
+            border-bottom-color: #444;
+        }
+
+        .suggestion-item:hover {
+            background: #f5f5f5;
+        }
+
+        .dark-mode .suggestion-item:hover {
+            background: #333;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-color);
+        }
+
+        .suggestion-phone {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-icon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-icon-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-icon-secondary:hover {
+            background: #e0e0e0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-status {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
+        .search-status.success {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .search-status.error {
+            color: #ff4444;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+    <div id="offline-indicator" style="display: none; position: fixed; top: 20px; right: 20px; background: #dc2626; color: white; padding: 12px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 9998; animation: pulse 1s infinite;">⚠️ OFFLINE</div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem;" class="desktop-title">Customer Form</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 30px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.8rem;">📝 Customer Information Form</h1>
+                <p style="opacity: 0.8;">Collect and manage comprehensive customer data</p>
+            </div>
+
+            <div class="form-container">
+                <div id="success-message" class="success-message">✅ Customer information saved successfully!</div>
+                <div id="error-message" class="error-message">❌ Error saving customer information</div>
+
+                <!-- Customer Search Section -->
+                <div class="search-section">
+                    <div style="margin-bottom: 15px;">
+                        <h2 style="margin: 0 0 8px 0; font-size: 1.1rem;">🔍 Search Existing Customer</h2>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Find by phone number or name to edit/view customer info</p>
+                    </div>
+                    <div class="search-input-group">
+                        <div class="search-input-wrapper">
+                            <input 
+                                type="text" 
+                                id="customer-search" 
+                                class="customer-search-input" 
+                                placeholder="Enter phone (10 digits) or name..."
+                                autocomplete="off"
+                            >
+                            <div id="search-suggestions" class="search-suggestions"></div>
+                        </div>
+                        <div class="search-buttons">
+                            <button type="button" class="btn-icon" onclick="performCustomerSearch()" title="Search">🔍 Search</button>
+                            <button type="button" class="btn-icon btn-icon-secondary" onclick="newCustomerForm()" title="New Customer">➕ New</button>
+                        </div>
+                    </div>
+                    <div id="search-status" class="search-status"></div>
+                </div>
+
+                <div id="success-message" class="success-message">✅ Customer information saved successfully!</div>
+                <div id="error-message" class="error-message">❌ Error saving customer information</div>
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Saving customer information...</p>
+                </div>
+
+                <form id="customer-form">
+                    <!-- Personal Information Section -->
+                    <div class="form-section">
+                        <div class="section-title">👤 Personal Information</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="firstName" class="required">First Name</label>
+                                <input type="text" id="firstName" name="firstName" placeholder="Enter first name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName" class="required">Last Name</label>
+                                <input type="text" id="lastName" name="lastName" placeholder="Enter last name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="fatherName" class="required">Father's Name</label>
+                                <input type="text" id="fatherName" name="fatherName" placeholder="Enter father's name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="motherName">Mother's Name</label>
+                                <input type="text" id="motherName" name="motherName" placeholder="Enter mother's name">
+                            </div>
+                            <div class="form-group">
+                                <label for="spouseName">Spouse Name</label>
+                                <input type="text" id="spouseName" name="spouseName" placeholder="Enter spouse's name (if married)">
+                            </div>
+                            <div class="form-group">
+                                <label for="email" class="required">Email</label>
+                                <input type="email" id="email" name="email" placeholder="your@email.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone" class="required">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="10-digit mobile number" pattern="[0-9]{10}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dob">Date of Birth</label>
+                                <input type="date" id="dob" name="dob">
+                            </div>
+                            <div class="form-group">
+                                <label for="gender">Gender</label>
+                                <select id="gender" name="gender">
+                                    <option value="">Select gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address Information Section -->
+                    <div class="form-section">
+                        <div class="section-title">📍 Address Information</div>
+                        <div class="form-grid">
+                            <div class="form-group form-row">
+                                <label for="address" class="required">Full Address</label>
+                                <textarea id="address" name="address" placeholder="Enter complete address" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="city" class="required">City</label>
+                                <input type="text" id="city" name="city" placeholder="City name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="state" class="required">State</label>
+                                <input type="text" id="state" name="state" placeholder="State name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pincode" class="required">PIN Code</label>
+                                <input type="text" id="pincode" name="pincode" placeholder="6-digit PIN" pattern="[0-9]{6}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KYC Information Section -->
+                    <div class="form-section">
+                        <div class="section-title">🆔 KYC Information</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="aadhar">Aadhar Number</label>
+                                <input type="text" id="aadhar" name="aadhar" placeholder="12-digit Aadhar" pattern="[0-9]{12}">
+                            </div>
+                            <div class="form-group">
+                                <label for="pan">PAN Number</label>
+                                <input type="text" id="pan" name="pan" placeholder="10-character PAN">
+                            </div>
+                            <div class="form-group">
+                                <label for="voterID">Voter ID</label>
+                                <input type="text" id="voterID" name="voterID" placeholder="Voter ID number">
+                            </div>
+                            <div class="form-group">
+                                <label for="drivingLicense">Driving License</label>
+                                <input type="text" id="drivingLicense" name="drivingLicense" placeholder="License number">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bank Information Section -->
+                    <div class="form-section">
+                        <div class="section-title">🏦 Bank Information</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="bankName">Bank Name</label>
+                                <input type="text" id="bankName" name="bankName" placeholder="Bank name">
+                            </div>
+                            <div class="form-group">
+                                <label for="accountNumber">Account Number</label>
+                                <input type="text" id="accountNumber" name="accountNumber" placeholder="Account number">
+                            </div>
+                            <div class="form-group">
+                                <label for="ifscCode">IFSC Code</label>
+                                <input type="text" id="ifscCode" name="ifscCode" placeholder="IFSC code" pattern="[A-Z]{4}0[A-Z0-9]{6}">
+                            </div>
+                            <div class="form-group">
+                                <label for="accountHolder">Account Holder Name</label>
+                                <input type="text" id="accountHolder" name="accountHolder" placeholder="Name as per bank">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Preferences Section -->
+                    <div class="form-section">
+                        <div class="section-title">🛠️ CSC Services Interested In</div>
+                        <div class="form-grid form-row">
+                            <label style="font-weight: 600; margin-bottom: 10px;">Available Services at CSC</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceAadhar" name="services" value="Aadhar Card Registration">
+                                    <label for="serviceAadhar">🆔 Aadhar Card Registration & Enrollment</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="servicePAN" name="services" value="PAN Card Application">
+                                    <label for="servicePAN">💳 PAN Card Application & Status</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceRation" name="services" value="Ration Card Services">
+                                    <label for="serviceRation">🍎 Ration Card Registration & Renewal</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceBankAccount" name="services" value="Bank Account Opening">
+                                    <label for="serviceBankAccount">🏦 Bank Account Opening (PMJDY, SB, etc)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="servicePMJDY" name="services" value="PMJDY Services">
+                                    <label for="servicePMJDY">💰 Pradhan Mantri Jan Dhan Yojana</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceVoterID" name="services" value="Voter ID Registration">
+                                    <label for="serviceVoterID">🗳️ Voter ID Registration & Correction</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceDrivingLicense" name="services" value="Driving License Application">
+                                    <label for="serviceDrivingLicense">🚗 Driving License Application & Renewal</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="servicePassport" name="services" value="Passport Services">
+                                    <label for="servicePassport">🛂 Passport Application & Status</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceIncome" name="services" value="Income Certificate">
+                                    <label for="serviceIncome">📄 Income Certificate & Character Certificate</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceBirth" name="services" value="Birth & Death Certificate">
+                                    <label for="serviceBirth">👶 Birth & Death Certificate Registration</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceMarriage" name="services" value="Marriage Certificate">
+                                    <label for="serviceMarriage">💍 Marriage Certificate Registration</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceGST" name="services" value="GST Registration">
+                                    <label for="serviceGST">📊 GST Registration & Compliance</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceBhulekh" name="services" value="Bhulekh/Land Records">
+                                    <label for="serviceBhulekh">🗺️ Bhulekh/Land Records Access</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceNrega" name="services" value="NREGA Job Card">
+                                    <label for="serviceNrega">👷 NREGA Job Card Registration</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceAyushman" name="services" value="Ayushman Bharat">
+                                    <label for="serviceAyushman">🏥 Ayushman Bharat PMJAY Registration</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceScholarship" name="services" value="Online Scholarship">
+                                    <label for="serviceScholarship">🎓 Online Scholarship Applications</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceITReturn" name="services" value="Income Tax Return">
+                                    <label for="serviceITReturn">📝 Income Tax Return Filing</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceBillPayment" name="services" value="Utility Bill Payment">
+                                    <label for="serviceBillPayment">⚡ Electricity & Utility Bill Payment</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceReceipt" name="services" value="Receipt Maker">
+                                    <label for="serviceReceipt">🧾 Receipt & Document Printing</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="serviceQR" name="services" value="QR Code Services">
+                                    <label for="serviceQR">📲 QR Code Generation & Scanning</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information Section -->
+                    <div class="form-section">
+                        <div class="section-title">📝 Additional Information</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="businessName">Business/Organization Name</label>
+                                <input type="text" id="businessName" name="businessName" placeholder="Business name (if any)">
+                            </div>
+                            <div class="form-group">
+                                <label for="businessType">Business Type</label>
+                                <input type="text" id="businessType" name="businessType" placeholder="Type of business">
+                            </div>
+                            <div class="form-group form-row">
+                                <label for="notes">Notes & Comments</label>
+                                <textarea id="notes" name="notes" placeholder="Add any additional notes about the customer"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Document Upload Section -->
+                    <div class="form-section">
+                        <div class="section-title">📎 Document Upload</div>
+                        <div class="form-grid">
+                            <div class="form-group form-row">
+                                <label>Upload Customer Photo/ID</label>
+                                <div class="file-input-wrapper">
+                                    <input type="file" id="photoUpload" name="photoUpload" accept="image/*">
+                                    <label for="photoUpload" class="file-input-label">📷 Choose photo (Click or drag)</label>
+                                    <div class="file-name" id="photoFileName"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buttons Section -->
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-submit">💾 Save Customer Information</button>
+                        <button type="reset" class="btn btn-reset">🔄 Clear Form</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script>
+        // Initialize P2P Client
+        let p2pClient = new P2PClient();
+        let currentCustomerId = null;
+
+        // ====== OFFLINE QUEUE LISTENER ======
+        p2pClient.onConnectionStatusChange((status) => {
+            console.log('📡 Connection status:', status);
+            const offlineIndicator = document.getElementById('offline-indicator');
+            if (offlineIndicator) {
+                if (status.status === 'connected') {
+                    offlineIndicator.style.display = 'none';
+                } else if (status.status === 'disconnected') {
+                    offlineIndicator.style.display = 'block';
+                }
+            }
+        });
+
+        // Auto-connect to server on load
+        window.addEventListener('load', async () => {
+            try {
+                // Try to connect to host
+                const result = await p2pClient.connectToHost(SERVER_URL);
+                if (result.success) {
+                    console.log('✓ Connected to P2P server');
+                    p2pClient.startAutoSync(5000);
+                } else {
+                    console.warn('Could not connect to P2P server');
+                }
+            } catch (error) {
+                console.warn('Server connection failed:', error.message);
+            }
+        });
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            if (sidebar) sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        // ====== CUSTOMER SEARCH FUNCTIONALITY ======
+        document.getElementById('customer-search').addEventListener('input', debounce(async function(e) {
+            const searchTerm = e.target.value.trim();
+            
+            if (searchTerm.length < 2) {
+                document.getElementById('search-suggestions').classList.remove('active');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/customers/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ search: searchTerm })
+                });
+
+                const data = await response.json();
+                displaySearchSuggestions(data.results || data.customers || []);
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }, 300));
+
+        function displaySearchSuggestions(results) {
+            const suggestionsDiv = document.getElementById('search-suggestions');
+            
+            if (results.length === 0) {
+                suggestionsDiv.innerHTML = '<div style="padding: 12px; text-align: center; opacity: 0.6;">No customers found</div>';
+                suggestionsDiv.classList.add('active');
+                return;
+            }
+
+            let html = '';
+            results.slice(0, 10).forEach(customer => {
+                // Handle both SQLite (camelCase) and Google Sheets (Title Case) field names
+                const customerId = customer.id || customer['Customer ID'];
+                
+                // Build name from various field name formats
+                let name = '';
+                if (customer.firstName && customer.lastName) {
+                    name = `${customer.firstName} ${customer.lastName}`;
+                } else if (customer['Full Name']) {
+                    name = customer['Full Name'];
+                } else if (customer.first_name && customer.last_name) {
+                    name = `${customer.first_name} ${customer.last_name}`;
+                } else {
+                    name = customer.name || '';
+                }
+                
+                const phone = customer.phone || customer['Phone'] || customer.mobile || '';
+                
+                html += `
+                    <div class="suggestion-item" onclick="selectCustomer('${customerId}')">
+                        <div class="suggestion-name">${name}</div>
+                        <div class="suggestion-phone">📱 ${phone}</div>
+                    </div>
+                `;
+            });
+
+            suggestionsDiv.innerHTML = html;
+            suggestionsDiv.classList.add('active');
+        }
+
+        async function selectCustomer(customerId) {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/customers/${customerId}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                
+                if (data.customer && data.success) {
+                    populateFormWithCustomerData(data.customer);
+                    currentCustomerId = customerId;
+                    document.getElementById('search-suggestions').classList.remove('active');
+                    document.getElementById('customer-search').value = '';
+                    document.getElementById('search-status').textContent = '✓ Customer loaded - Update and save to modify';
+                    document.getElementById('search-status').className = 'search-status success';
+                    
+                    // Scroll to form
+                    document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (error) {
+                console.error('Error loading customer:', error);
+                showError(true);
+            }
+        }
+
+        function populateFormWithCustomerData(customer) {
+            // Helper to get field value - supports both SQLite (camelCase) and Google Sheets (Title Case) field names
+            const getFieldValue = (field, alternatives = []) => {
+                return customer[field] || alternatives.map(alt => customer[alt]).find(v => v) || '';
+            };
+
+            // Personal Information
+            document.getElementById('firstName').value = getFieldValue('firstName', ['First Name', 'first_name']) || '';
+            document.getElementById('lastName').value = getFieldValue('lastName', ['Last Name', 'last_name']) || '';
+            document.getElementById('fatherName').value = getFieldValue('fatherName', ['Father\'s Name', 'father_name']) || '';
+            document.getElementById('motherName').value = getFieldValue('motherName', ['Mother\'s Name', 'mother_name']) || '';
+            document.getElementById('spouseName').value = getFieldValue('spouseName', ['Spouse Name', 'spouse_name']) || '';
+            document.getElementById('email').value = getFieldValue('email', ['Email']) || '';
+            document.getElementById('phone').value = getFieldValue('phone', ['Phone', 'mobile']) || '';
+            document.getElementById('dob').value = getFieldValue('dob', ['Date of Birth', 'dateOfBirth']) || '';
+            document.getElementById('gender').value = getFieldValue('gender', ['Gender']) || '';
+
+            // Address Information
+            document.getElementById('address').value = getFieldValue('address', ['Address']) || '';
+            document.getElementById('city').value = getFieldValue('city', ['City']) || '';
+            document.getElementById('state').value = getFieldValue('state', ['State']) || '';
+            document.getElementById('pincode').value = getFieldValue('pincode', ['PIN Code', 'zipCode', 'zip']) || '';
+
+            // KYC Information
+            document.getElementById('aadhar').value = getFieldValue('aadhar', ['Aadhar Number', 'aadharNumber']) || '';
+            document.getElementById('pan').value = getFieldValue('pan', ['PAN Number', 'panNumber']) || '';
+            document.getElementById('voterID').value = getFieldValue('voterID', ['Voter ID', 'voterId']) || '';
+            document.getElementById('drivingLicense').value = getFieldValue('drivingLicense', ['Driving License', 'licenseNumber']) || '';
+
+            // Bank Information
+            document.getElementById('bankName').value = getFieldValue('bankName', ['Bank Name', 'bank_name']) || '';
+            document.getElementById('accountNumber').value = getFieldValue('accountNumber', ['Account Number', 'account_number']) || '';
+            document.getElementById('ifscCode').value = getFieldValue('ifscCode', ['IFSC Code', 'ifsc']) || '';
+            document.getElementById('accountHolder').value = getFieldValue('accountHolder', ['Account Holder', 'account_holder']) || '';
+
+            // Business Information
+            document.getElementById('businessName').value = getFieldValue('businessName', ['Business Name', 'business_name']) || '';
+            document.getElementById('businessType').value = getFieldValue('businessType', ['Business Type', 'business_type']) || '';
+            document.getElementById('notes').value = getFieldValue('notes', ['Notes', 'remarks']) || '';
+
+            // Services - uncheck all first
+            document.querySelectorAll('input[name="services"]').forEach(cb => cb.checked = false);
+            
+            // Check services from database - supports both formats
+            const servicesField = customer['service'] || customer['Service'] || customer['services'] || customer['CSC Services Interested'] || '';
+            if (servicesField) {
+                const services = servicesField.split(',').map(s => s.trim());
+                services.forEach(service => {
+                    const checkbox = Array.from(document.querySelectorAll('input[name="services"]'))
+                        .find(cb => cb.value === service);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+        }
+
+        function performCustomerSearch() {
+            const searchTerm = document.getElementById('customer-search').value.trim();
+            
+            if (searchTerm.length === 0) {
+                document.getElementById('search-status').textContent = 'Enter phone number or name';
+                document.getElementById('search-status').className = 'search-status error';
+                return;
+            }
+
+            // Trigger input event to show suggestions
+            document.getElementById('customer-search').dispatchEvent(new Event('input'));
+        }
+
+        function newCustomerForm() {
+            document.getElementById('customer-form').reset();
+            document.getElementById('customer-search').value = '';
+            document.getElementById('search-suggestions').classList.remove('active');
+            document.getElementById('search-status').textContent = '';
+            document.getElementById('photoFileName').textContent = '';
+            currentCustomerId = null;
+            document.querySelector('form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-input-wrapper')) {
+                document.getElementById('search-suggestions').classList.remove('active');
+            }
+        });
+
+        // File input handling
+        document.getElementById('photoUpload').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || '';
+            document.getElementById('photoFileName').textContent = fileName ? `✓ ${fileName}` : '';
+        });
+
+        // ====== HELPER: Convert form field names to database column names ======
+        function convertFormDataToDBFormat(formData) {
+            // Mapping from form field names (camelCase) to database column names (snake_case)
+            const fieldMapping = {
+                'firstName': 'first_name',
+                'lastName': 'last_name',
+                'fatherName': 'father_name',
+                'motherName': 'mother_name',
+                'spouseName': 'spouse_name',
+                'email': 'email',
+                'phone': 'phone',
+                'dob': 'dob',
+                'gender': 'gender',
+                'address': 'address',
+                'city': 'city',
+                'state': 'state',
+                'pincode': 'pin_code',
+                'aadhar': 'aadhar',
+                'pan': 'pan',
+                'voterID': 'voter_id',
+                'drivingLicense': 'driving_license',
+                'bankName': 'bank_name',
+                'accountNumber': 'account_number',
+                'ifscCode': 'ifsc_code',
+                'accountHolder': 'account_holder',
+                'businessName': 'business_name',
+                'businessType': 'business_type',
+                'notes': 'notes',
+                'services': 'services'
+            };
+
+            // Fields to skip (not database columns)
+            const skipFields = ['photoUpload', 'photoFileName', 'submit', 'reset', 'timestamp'];
+
+            const convertedData = {};
+            
+            for (const [key, value] of Object.entries(formData)) {
+                // Skip fields that aren't database columns
+                if (skipFields.includes(key) || !fieldMapping[key]) {
+                    continue;
+                }
+
+                const dbColumnName = fieldMapping[key];
+                // Only include if value is not empty or is a meaningful value
+                if (value !== '' && value !== undefined && value !== null) {
+                    convertedData[dbColumnName] = value;
+                }
+            }
+
+            // Build full_name from first_name and last_name for search purposes
+            if (convertedData['first_name'] || convertedData['last_name']) {
+                convertedData['full_name'] = `${convertedData['first_name'] || ''} ${convertedData['last_name'] || ''}`.trim();
+            }
+
+            return convertedData;
+        }
+
+        // Form submission
+        document.getElementById('customer-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            let data = Object.fromEntries(formData);
+
+            // Get checkbox values
+            const services = Array.from(document.querySelectorAll('input[name="services"]:checked'))
+                .map(cb => cb.value)
+                .join(', ');
+            data.services = services;
+
+            // Convert form field names to database column names
+            data = convertFormDataToDBFormat(data);
+            
+            showLoading(true);
+
+            try {
+                if (currentCustomerId) {
+                    // UPDATE existing customer
+                    console.log('📝 Updating customer:', currentCustomerId);
+                    console.log('📋 Data being sent:', data);
+                    
+                    const response = await fetch(`${SERVER_URL}/api/customers/${currentCustomerId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    console.log('📨 Server response:', result);
+                    
+                    if (result.success) {
+                        showSuccess(true);
+                        console.log('✓ Customer updated successfully');
+                        
+                        // Push change to P2P network
+                        await p2pClient.pushChanges([{
+                            action: 'UPDATE',
+                            table: 'customers',
+                            customerId: currentCustomerId,
+                            data: data,
+                            timestamp: Date.now()
+                        }]);
+                        
+                        // Sync with other devices
+                        await p2pClient.syncDatabase();
+                        
+                        document.getElementById('search-status').textContent = '✓ Customer updated and synced to P2P network';
+                        document.getElementById('search-status').className = 'search-status success';
+                    } else {
+                        console.error('❌ Server error:', result.error);
+                        throw new Error(result.error || 'Update failed');
+                    }
+                } else {
+                    // SAVE new customer
+                    console.log('➕ Saving new customer');
+                    console.log('📋 Data being sent:', data);
+                    
+                    const response = await fetch(`${SERVER_URL}/api/customers/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showSuccess(true);
+                        
+                        // Push change to P2P network
+                        await p2pClient.pushChanges([{
+                            action: 'INSERT',
+                            table: 'customers',
+                            customerId: result.customerId,
+                            data: data,
+                            timestamp: Date.now()
+                        }]);
+                        
+                        // Sync with other devices
+                        await p2pClient.syncDatabase();
+                        
+                        // Clear form
+                        document.getElementById('customer-form').reset();
+                        document.getElementById('photoFileName').textContent = '';
+                        currentCustomerId = null;
+                        
+                        // Show success message
+                        showSuccess(false);
+                        setTimeout(() => {
+                            showSuccess(true);
+                            document.getElementById('success-message').innerHTML = 
+                                '✅ Customer saved successfully! Customer ID: ' + result.customerId;
+                        }, 500);
+                    } else {
+                        throw new Error(result.error || 'Save failed');
+                    }
+                }
+                    
+                setTimeout(() => {
+                    showSuccess(false);
+                }, 3000);
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // Check if it's a network error
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    console.log('❌ Network error - queuing changes');
+                    
+                    // Queue the changes for later sync
+                    const action = currentCustomerId ? 'UPDATE' : 'INSERT';
+                    const queueId = p2pClient.addToQueue([{
+                        action: action,
+                        table: 'customers',
+                        customerId: currentCustomerId,
+                        data: data,
+                        timestamp: Date.now()
+                    }], { type: action, phone: data.phone });
+                    
+                    document.getElementById('error-message').innerHTML = 
+                        '⏸️ Server is offline!<br>Your changes have been saved locally and will sync when the server is back.<br>Queue ID: ' + queueId;
+                    showError(true);
+                    setTimeout(() => showError(false), 5000);
+                } else {
+                    document.getElementById('error-message').innerHTML = 
+                        '❌ Error: ' + error.message;
+                    showError(true);
+                    setTimeout(() => showError(false), 3000);
+                }
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showSuccess(show) {
+            document.getElementById('success-message').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(show) {
+            document.getElementById('error-message').style.display = show ? 'block' : 'none';
+        }
+
+        window.onload = function() {
+            if(window.innerWidth > 768) {
+                const title = document.querySelector('.desktop-title');
+                if(title) title.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Order Receipt Maker - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Special override for Barcode font in this specific file */
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">CSC / CSP Utilities</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 25px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.5rem;">Service Order Receipt Generator</h1>
+                <p style="opacity: 0.8; font-size: 0.9rem;">Book customer orders for certificates/PAN and generate advance payment receipts.</p>
+            </div>
+
+            <div class="split-grid">
+                
+                <div class="card">
+                    <div class="card-header">Customer & Service Details</div>
+                    
+                    <div class="row">
+                        <div>
+                            <label>Shop/Center Name (Auto Saves)</label>
+                            <input type="text" id="in-shop-name" value="MY CSC CENTER" oninput="updateReceipt(); saveSettings();">
+                        </div>
+                        <div>
+                            <label>Address / Contact Info</label>
+                            <input type="text" id="in-shop-details" value="Main Market | Mob: 9876543210" oninput="updateReceipt(); saveSettings();">
+                        </div>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0 15px 0;">
+
+                    <div class="row">
+                        <div>
+                            <label>Service Applied For</label>
+                            <select id="in-type" onchange="updateReceipt()">
+                                <option value="PAN Card Application">PAN Card Application</option>
+                                <option value="Caste Certificate (जाति)">Caste Certificate (जाति)</option>
+                                <option value="Income Certificate (आय)">Income Certificate (आय)</option>
+                                <option value="Domicile Certificate (निवास)">Domicile Certificate (निवास)</option>
+                                <option value="Birth Certificate (जन्म)">Birth Certificate (जन्म)</option>
+                                <option value="Death Certificate (मृत्यु)">Death Certificate (मृत्यु)</option>
+                                <option value="Aadhaar Update/PVC">Aadhaar Update/PVC</option>
+                                <option value="Ration Card Service">Ration Card Service</option>
+                                <option value="Voter ID Service">Voter ID Service</option>
+                                <option value="Driving License Service">Driving License Service</option>
+                                <option value="Online Form Submission">Online Form Submission</option>
+                                <option value="Passport Application">Passport Application</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Customer Name</label>
+                            <input type="text" id="in-cust-name" placeholder="Enter Customer Name" oninput="updateReceipt()">
+                        </div>
+                        <div>
+                            <label>Customer Mobile</label>
+                            <input type="text" id="in-mobile" placeholder="e.g. 98765XXXXX" oninput="updateReceipt()" maxlength="10">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Application ID / Doc No. (If available)</label>
+                            <input type="text" id="in-txn" placeholder="e.g. 1092837465" oninput="updateReceipt()">
+                        </div>
+                    </div>
+
+                    <div class="row" style="background: rgba(79, 70, 229, 0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 10px;">
+                        <div>
+                            <label style="color: var(--primary-color);">Total Fees (₹)</label>
+                            <input type="number" id="in-total-amount" placeholder="e.g. 200" oninput="updateReceipt()" style="font-size: 1.2rem; color: var(--primary-color); margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="color: var(--success-color);">Advance Paid (₹)</label>
+                            <input type="number" id="in-paid-amount" placeholder="e.g. 100" oninput="updateReceipt()" style="font-size: 1.2rem; color: var(--success-color); margin-bottom: 0;">
+                        </div>
+                    </div>
+
+                    <button class="btn outline" style="width: 100%; margin-top: 20px;" onclick="clearForm()">🧹 Reset Form for Next Customer</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Live Preview & Export</div>
+                    
+                    <div class="receipt-wrapper">
+                        <div id="print-area">
+                            
+                            <div class="receipt" id="receipt-card">
+                                <div class="receipt-header">
+                                    <h2 class="out-shop-name">MY CSC CENTER</h2>
+                                    <p class="out-shop-details">Main Market | Mob: 9876543210</p>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="receipt-row"><span>Date & Time:</span><span class="out-datetime">--</span></div>
+                                <div class="receipt-row"><span>Receipt No:</span><span class="out-receipt-no">--</span></div>
+                                <div class="receipt-row"><span>App ID / Doc No:</span><span class="out-txn">--</span></div>
+                                <div class="divider"></div>
+                                <div class="receipt-row"><span>Service:</span><span class="out-type" style="font-weight: bold; color: var(--primary-color);">PAN Card</span></div>
+                                <div class="receipt-row"><span>Customer:</span><span class="out-cust-name">--</span></div>
+                                <div class="receipt-row"><span>Mobile:</span><span class="out-mobile">--</span></div>
+                                
+                                <div class="out-stamp status-stamp stamp-success">ADVANCE</div>
+                                
+                                <div class="divider"></div>
+                                <div class="receipt-row"><span>Total Fees:</span><span class="out-total">₹ 0.00</span></div>
+                                <div class="receipt-row" style="color: green; font-weight: bold;"><span>Amount Paid:</span><span class="out-paid">₹ 0.00</span></div>
+                                
+                                <div class="receipt-amount" id="balance-box" style="color: red; border-color: red;">
+                                    <span>BALANCE DUE:</span>
+                                    <span class="out-balance">₹ 0.00</span>
+                                </div>
+                                
+                                <div class="divider"></div>
+                                <div class="barcode out-barcode">*123456*</div>
+                                <p class="receipt-footer">
+                                    <strong>*** CUSTOMER ACKNOWLEDGMENT ***</strong><br>
+                                    Please keep this receipt safe for collecting your document.<br>Computer generated receipt.
+                                </p>
+                            </div>
+
+                            <div id="merchant-receipt-container" style="display: none;">
+                                <div class="cut-line">✂ - - - - CUT HERE - - - - ✂</div>
+                                <div class="receipt">
+                                    <div class="receipt-header">
+                                        <h2 class="out-shop-name">MY CSC CENTER</h2>
+                                        <p class="out-shop-details">Main Market | Mob: 9876543210</p>
+                                    </div>
+                                    <div class="divider"></div>
+                                    <div class="receipt-row"><span>Date & Time:</span><span class="out-datetime">--</span></div>
+                                    <div class="receipt-row"><span>Receipt No:</span><span class="out-receipt-no">--</span></div>
+                                    <div class="receipt-row"><span>App ID / Doc No:</span><span class="out-txn">--</span></div>
+                                    <div class="divider"></div>
+                                    <div class="receipt-row"><span>Service:</span><span class="out-type" style="font-weight: bold;">PAN Card</span></div>
+                                    <div class="receipt-row"><span>Customer:</span><span class="out-cust-name">--</span></div>
+                                    <div class="out-stamp status-stamp stamp-success">ADVANCE</div>
+                                    <div class="divider"></div>
+                                    <div class="receipt-row"><span>Total Fees:</span><span class="out-total">₹ 0.00</span></div>
+                                    <div class="receipt-row"><span>Amount Paid:</span><span class="out-paid">₹ 0.00</span></div>
+                                    <div class="receipt-amount"><span>BALANCE DUE:</span><span class="out-balance">₹ 0.00</span></div>
+                                    
+                                    <div class="divider"></div>
+                                    <p class="receipt-footer" style="text-align: left; margin-top: 15px;">
+                                        <strong>*** MERCHANT COPY (Records) ***</strong><br><br><br>
+                                        Customer Sign: _________________<br><br><br>
+                                        Agent Sign:    _________________
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                        <select id="print-copies" style="margin-bottom: 0;">
+                            <option value="1">Print 1 Copy (Customer)</option>
+                            <option value="2">Print 2 Copies (A4 Side-by-Side)</option>
+                        </select>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" style="flex: 1;" onclick="printSlip()">🖨️ Print Slip</button>
+                            <button class="btn success" style="flex: 1;" onclick="downloadWhatsAppImage()">📱 WhatsApp</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+
+    <script>
+        // --- Mobile Sidebar Toggle ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('mobile-overlay').classList.toggle('active');
+        }
+
+        // --- Dark Mode Logic ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        // Helper: Format Currency
+        function formatRupees(amount) {
+            if(!amount || isNaN(amount)) return "₹ 0.00";
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+        }
+
+        window.onload = function() {
+            // Show title on desktop, hide on mobile
+            if(window.innerWidth > 768) {
+                const title = document.querySelector('.desktop-title');
+                if(title) title.style.display = 'block';
+            }
+
+            // Load saved shop settings
+            if(localStorage.getItem('csc_shop_name')) document.getElementById('in-shop-name').value = localStorage.getItem('csc_shop_name');
+            if(localStorage.getItem('csc_shop_details')) document.getElementById('in-shop-details').value = localStorage.getItem('csc_shop_details');
+            
+            generateRandomIds();
+            updateReceipt();
+        }
+
+        function saveSettings() {
+            localStorage.setItem('csc_shop_name', document.getElementById('in-shop-name').value);
+            localStorage.setItem('csc_shop_details', document.getElementById('in-shop-details').value);
+        }
+
+        function generateRandomIds() {
+            // Random Receipt No
+            setTexts('out-receipt-no', "SER-" + Math.floor(Math.random() * 90000 + 10000));
+            // Random Barcode
+            setTexts('out-barcode', "*" + Math.floor(Math.random() * 900000 + 100000) + "*");
+        }
+
+        // Helper: Set text to all elements with a class
+        function setTexts(className, text) {
+            document.querySelectorAll('.' + className).forEach(el => el.innerText = text);
+        }
+
+        // --- CORE LOGIC: Update Receipt Live ---
+        function updateReceipt() {
+            // 1. Set Date & Time
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-IN') + " " + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            setTexts('out-datetime', dateStr);
+
+            // 2. Set Shop & Customer Details
+            setTexts('out-shop-name', document.getElementById('in-shop-name').value || "SHOP NAME");
+            setTexts('out-shop-details', document.getElementById('in-shop-details').value || "Address Details");
+            setTexts('out-type', document.getElementById('in-type').value);
+            setTexts('out-cust-name', document.getElementById('in-cust-name').value || "---");
+            setTexts('out-mobile', document.getElementById('in-mobile').value || "---");
+            setTexts('out-txn', document.getElementById('in-txn').value || "Pending");
+            
+            // 3. Payment Calculations
+            const total = parseFloat(document.getElementById('in-total-amount').value) || 0;
+            const paid = parseFloat(document.getElementById('in-paid-amount').value) || 0;
+            const balance = total - paid;
+
+            setTexts('out-total', formatRupees(total));
+            setTexts('out-paid', formatRupees(paid));
+            setTexts('out-balance', formatRupees(balance));
+
+            // 4. Update Status Stamp & Balance Looks
+            const statusStamps = document.querySelectorAll('.out-stamp');
+            const balanceBox = document.getElementById('balance-box');
+
+            if (total > 0 && balance <= 0) {
+                // Fully Paid
+                statusStamps.forEach(stamp => {
+                    stamp.innerText = "PAID";
+                    stamp.className = "out-stamp status-stamp stamp-success";
+                });
+                balanceBox.style.color = "green";
+                balanceBox.style.borderColor = "green";
+            } else if (paid > 0) {
+                // Advance Paid
+                statusStamps.forEach(stamp => {
+                    stamp.innerText = "ADVANCE";
+                    stamp.className = "out-stamp status-stamp stamp-success";
+                });
+                balanceBox.style.color = "red";
+                balanceBox.style.borderColor = "red";
+            } else {
+                // No payment yet
+                statusStamps.forEach(stamp => {
+                    stamp.innerText = "UNPAID";
+                    stamp.className = "out-stamp status-stamp stamp-failed";
+                });
+                balanceBox.style.color = "red";
+                balanceBox.style.borderColor = "red";
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('in-cust-name').value = "";
+            document.getElementById('in-mobile').value = "";
+            document.getElementById('in-txn').value = "";
+            document.getElementById('in-total-amount').value = "";
+            document.getElementById('in-paid-amount').value = "";
+            document.getElementById('in-type').selectedIndex = 0;
+            generateRandomIds();
+            updateReceipt();
+        }
+
+        // --- Print Logic for A4 ---
+        function printSlip() {
+            const mode = document.getElementById('print-copies').value;
+            const merchantCopy = document.getElementById('merchant-receipt-container');
+            
+            if(mode === "2") {
+                merchantCopy.style.display = "block"; // Show for print
+            } else {
+                merchantCopy.style.display = "none";
+            }
+            
+            window.print();
+            
+            // Hide merchant copy again after printing leaves the dialog
+            setTimeout(() => {
+                merchantCopy.style.display = "none";
+            }, 500);
+        }
+
+        // --- WhatsApp Logic (Save as Image) ---
+        function downloadWhatsAppImage() {
+            const receiptDiv = document.getElementById('receipt-card'); 
+            const custName = document.getElementById('in-cust-name').value || "Customer";
+            
+            // Hide selection border temporarily for clean image
+            setTexts('out-stamp', document.querySelectorAll('.out-stamp')[0].innerText); // ensure correct text
+            drawAll(); // redraw without selected border (if overlayer logic was used, not needed here but kept for safety)
+
+            html2canvas(receiptDiv, {
+                scale: 2, // High quality
+                backgroundColor: "#ffffff",
+                logging: false
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `${custName}_Receipt.jpg`;
+                link.href = imgData;
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

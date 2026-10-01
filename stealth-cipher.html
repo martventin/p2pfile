@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stealth Cipher - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker Registered!', reg))
+                .catch(err => console.error('Service Worker Registration Failed!', err));
+            });
+        }
+    </script>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">Custom Security Operations</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 25px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.5rem;">🥷 Custom Stealth Cipher</h1>
+                <p style="opacity: 0.8; font-size: 0.9rem;">Scramble your passwords using a custom XOR algorithm. Outputs complex Alphanumeric text with @, #, and $.</p>
+            </div>
+            
+            <div class="split-grid" style="grid-template-columns: 1fr; max-width: 800px; margin: 0 auto;">
+                
+                <div class="card">
+                    <div class="card-header" style="border-bottom: none; margin-bottom: 5px;">Configure Your Secret Engine</div>
+                    <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 20px;">The Secret Key is the "DNA" of your scramble. Without this exact key, the data cannot be read.</p>
+                    
+                    <label>Your Secret Key (Do not forget this!)</label>
+                    <input type="password" id="cipher-key" placeholder="Enter a secret word or PIN..." style="font-size: 1.2rem; letter-spacing: 2px;">
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+                    <div class="row">
+                        <div style="background: rgba(79, 70, 229, 0.05); padding: 20px; border-radius: 8px; border: 1px dashed var(--primary-color);">
+                            <label style="color: var(--primary-color);">Text to Scramble</label>
+                            <textarea id="encode-input" placeholder="Type your real password here..." style="min-height: 80px; margin-bottom: 10px;"></textarea>
+                            <button class="btn" onclick="scrambleData()">🔒 Scramble to Password</button>
+                        </div>
+
+                        <div style="background: rgba(16, 185, 129, 0.05); padding: 20px; border-radius: 8px; border: 1px dashed var(--success-color);">
+                            <label style="color: var(--success-color);">Text to Reveal</label>
+                            <textarea id="decode-input" placeholder="Paste scrambled code here..." style="min-height: 80px; margin-bottom: 10px;"></textarea>
+                            <button class="btn success" onclick="revealData()">🔓 Reveal Original</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 25px;">
+                        <label>Output Result</label>
+                        <textarea id="cipher-output" readonly placeholder="Result will appear here..." style="font-size: 1.1rem; letter-spacing: 1px; min-height: 100px; font-weight: bold;"></textarea>
+                        <button class="btn outline" onclick="copyOutput()" id="copy-btn">📋 Copy Result</button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+
+    <script>
+        // --- Mobile Sidebar Toggle ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('mobile-overlay').classList.toggle('active');
+        }
+
+        window.onload = function() {
+            if(window.innerWidth > 768) {
+                const title = document.querySelector('.desktop-title');
+                if(title) title.style.display = 'block';
+            }
+        }
+
+        // --- Dark Mode Logic ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        // --- UPGRADED ALPHANUMERIC XOR CIPHER ALGORITHM WITH CUSTOM SYMBOLS ---
+        
+        function scrambleData() {
+            const text = document.getElementById('encode-input').value;
+            const secret = document.getElementById('cipher-key').value;
+            const outputBox = document.getElementById('cipher-output');
+
+            if (!text) return alert("Please enter text to scramble.");
+            if (!secret) return alert("Please enter a Secret Key first!");
+
+            // 1. Convert text to raw bytes
+            const encoder = new TextEncoder();
+            const textBytes = encoder.encode(text);
+            const secretBytes = encoder.encode(secret);
+
+            // 2. XOR Scramble Math
+            let scrambledBytes = new Uint8Array(textBytes.length);
+            for (let i = 0; i < textBytes.length; i++) {
+                scrambledBytes[i] = textBytes[i] ^ secretBytes[i % secretBytes.length];
+            }
+
+            // 3. Convert scrambled bytes to a binary string
+            let binaryString = "";
+            for (let i = 0; i < scrambledBytes.length; i++) {
+                binaryString += String.fromCharCode(scrambledBytes[i]);
+            }
+            
+            // 4. Encode to Base64
+            let finalOutput = window.btoa(binaryString);
+            
+            // 5. THE MAGIC SWAP: Replace standard symbols with @, #, and $
+            finalOutput = finalOutput.replace(/\+/g, '@').replace(/\//g, '#').replace(/=/g, '$');
+            
+            outputBox.value = finalOutput;
+            document.getElementById('encode-input').value = ""; // Clear input
+        }
+
+        function revealData() {
+            const scrambledText = document.getElementById('decode-input').value.trim();
+            const secret = document.getElementById('cipher-key').value;
+            const outputBox = document.getElementById('cipher-output');
+
+            if (!scrambledText) return alert("Please paste scrambled text to reveal.");
+            if (!secret) return alert("Please enter your Secret Key to unlock this!");
+
+            try {
+                // 1. REVERSE THE SWAP: Turn @, #, $ back into +, /, =
+                let standardBase64 = scrambledText.replace(/@/g, '+').replace(/#/g, '/').replace(/\$/g, '=');
+
+                // 2. Decode from Base64
+                let binaryString = window.atob(standardBase64);
+                
+                let scrambledBytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    scrambledBytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // 3. Reverse the XOR Scramble
+                const encoder = new TextEncoder();
+                const secretBytes = encoder.encode(secret);
+                let textBytes = new Uint8Array(scrambledBytes.length);
+                
+                for (let i = 0; i < scrambledBytes.length; i++) {
+                    textBytes[i] = scrambledBytes[i] ^ secretBytes[i % secretBytes.length];
+                }
+
+                // 4. Convert bytes back to readable text
+                const decoder = new TextDecoder();
+                outputBox.value = decoder.decode(textBytes);
+                
+                document.getElementById('decode-input').value = ""; // Clear input
+            } catch (e) {
+                alert("Failed to decode! Make sure you pasted the exact scrambled code and used the correct Secret Key.");
+            }
+        }
+
+        // --- Copy to Clipboard ---
+        function copyOutput() {
+            const output = document.getElementById('cipher-output');
+            if(!output.value) return;
+            
+            output.select();
+            document.execCommand("copy");
+            
+            const btn = document.getElementById('copy-btn');
+            btn.innerText = "✅ Copied!";
+            setTimeout(() => btn.innerText = "📋 Copy Result", 2000);
+        }
+    </script>
+</body>
+</html>

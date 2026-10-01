@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEPS Receipt Maker - UtilityPro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker Registered!', reg))
+                .catch(err => console.error('Service Worker Registration Failed!', err));
+            });
+        }
+    </script>
+
+    <style>
+        /* Shared Theme Variables */
+        :root {
+            --primary-color: #4f46e5; --primary-hover: #4338ca;
+            --sidebar-bg: #1f2937; --sidebar-text: #f3f4f6;
+            --bg-color: #f3f4f6; --text-color: #111827;
+            --card-bg: #ffffff; --border-color: #e5e7eb;
+            --success-color: #10b981; --warning-color: #f59e0b; --danger-color: #ef4444;
+            --input-bg: #ffffff;
+        }
+
+        body.dark-mode {
+            --bg-color: #111827; --text-color: #f3f4f6; --card-bg: #1f2937; 
+            --border-color: #374151; --sidebar-bg: #0f172a; --input-bg: #374151;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.3s, color 0.3s, transform 0.3s ease; }
+        body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
+
+        /* --- SIDEBAR & MOBILE OVERLAY --- */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; }
+        .sidebar-header { padding: 24px 20px; font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
+        .nav-links { list-style: none; padding: 20px 0; flex-grow: 1; overflow-y: auto; }
+        .nav-links li { padding: 5px 20px; }
+        .nav-links a { color: var(--sidebar-text); text-decoration: none; display: block; padding: 12px 15px; border-radius: 6px; font-weight: 500; transition: 0.2s; }
+        .nav-links a.active { background-color: var(--primary-color); }
+        
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 15; }
+
+        /* --- MAIN LAYOUT --- */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; width: 100%; }
+        
+        header { background-color: var(--card-bg); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 10; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { display: none; font-size: 1.5rem; background: none; border: none; color: var(--text-color); cursor: pointer; padding: 5px; }
+        .theme-toggle { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); }
+        
+        .dashboard-content { padding: 30px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+        /* --- CARDS & INPUTS --- */
+        .card { background-color: var(--card-bg); border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border-color); margin-bottom: 25px; }
+        .card-header { font-size: 1.25rem; font-weight: 600; color: var(--primary-color); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;}
+        
+        label { font-size: 0.85rem; font-weight: 600; opacity: 0.8; margin-bottom: 5px; display: block; }
+        input, select { width: 100%; padding: 12px 10px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background-color: var(--input-bg); color: var(--text-color); margin-bottom: 15px; font-weight: 500; font-size: 1rem; }
+        input:focus, select:focus { border-color: var(--primary-color); }
+        .row { display: flex; gap: 15px; }
+        .row > div { flex: 1; min-width: 0; /* Prevents flex items from overflowing */ }
+
+        /* Buttons */
+        .btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn.outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+        .btn.outline:hover { background: var(--primary-color); color: white; }
+        .btn.success { background-color: var(--success-color); }
+        .btn.success:hover { background-color: #059669; }
+
+        .split-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 25px; align-items: start; }
+
+        /* --- RECEIPT STYLING --- */
+        .receipt-wrapper { display: flex; justify-content: center; background: #e2e8f0; padding: 30px; border-radius: 8px; overflow-x: auto; }
+        
+        .receipt { 
+            background: #ffffff; color: #000000; width: 100%; max-width: 340px; padding: 20px; 
+            font-family: 'Consolas', 'Courier New', Courier, monospace; 
+            border: 1px solid #cbd5e1; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+        }
+
+        .receipt-header { text-align: center; margin-bottom: 15px; }
+        .receipt-header h2 { font-size: 1.2rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .receipt-header p { font-size: 0.75rem; line-height: 1.3; }
+        
+        .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; line-height: 1.2; }
+        .receipt-row span:last-child { font-weight: 600; text-align: right; word-break: break-all; max-width: 60%; }
+        .receipt-amount { font-size: 1.1rem; font-weight: bold; margin: 15px 0; padding: 10px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; display: flex; justify-content: space-between; align-items: center; }
+        
+        .status-stamp { text-align: center; font-weight: bold; font-size: 1.1rem; margin: 15px 0; padding: 8px; border: 2px dashed; text-transform: uppercase; letter-spacing: 2px;}
+        .stamp-success { color: #000; border-color: #000; } 
+        .stamp-failed { color: #000; border-color: #000; background: #f3f4f6; }
+        
+        .barcode { text-align: center; font-family: 'Libre Barcode 39', cursive, sans-serif; font-size: 2rem; margin: 15px 0 5px 0; }
+        .receipt-footer { text-align: center; font-size: 0.7rem; margin-top: 10px; }
+        .cut-line { text-align: center; margin: 30px 0; border-top: 1px dashed #000; padding-top: 10px; font-size: 0.8rem; letter-spacing: 2px;}
+
+        /* --- MOBILE APP RESPONSIVENESS --- */
+        @media (max-width: 768px) { 
+            .menu-btn { display: block; } /* Show Hamburger */
+            
+            /* Hide sidebar off-screen */
+            .sidebar { position: fixed; top: 0; left: 0; height: 100vh; transform: translateX(-100%); }
+            
+            /* Classes to activate via JS */
+            .sidebar.active { transform: translateX(0); }
+            .overlay.active { display: block; }
+
+            /* Tighten UI for small screens */
+            .dashboard-content { padding: 15px; }
+            .split-grid { grid-template-columns: 1fr; gap: 15px; }
+            .card { padding: 15px; }
+            .row { flex-direction: column; gap: 0; } /* Stack form inputs vertically */
+            
+            .receipt-wrapper { padding: 15px 10px; }
+            .receipt { padding: 15px; } /* Slightly less padding on mobile receipt */
+        }
+
+        /* --- PRINT MEDIA QUERY (A4) --- */
+        @media print {
+            body * { visibility: hidden; } 
+            #print-area, #print-area * { visibility: visible; } 
+            #print-area { position: absolute; left: 0; top: 0; margin: 0; padding: 15mm; width: 100%; display: flex; flex-direction: row; justify-content: flex-start; align-items: flex-start; }
+            .receipt { box-shadow: none; border: 1px solid #000 !important; padding: 15px; width: 85mm; max-width: 100%; page-break-inside: avoid; }
+            .receipt, .receipt * { color: #000 !important; background: transparent !important; }
+            .cut-line { display: none; } 
+            #merchant-receipt-container { display: block !important; margin-left: 10mm; padding-left: 10mm; border-left: 1px dashed #000; position: relative; }
+            #merchant-receipt-container::before { content: '✂'; position: absolute; left: -7px; top: 50%; transform: translateY(-50%); background: white; font-size: 16px; color: #000; }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">CSC / CSP Utilities</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 20px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.5rem;">Pro Receipt Generator</h1>
+                <p style="opacity: 0.8; font-size: 0.9rem;">Create printable receipts for AEPS, DMT, and Bill Payments.</p>
+            </div>
+
+            <div class="split-grid">
+                
+                <div class="card">
+                    <div class="card-header">Transaction Details</div>
+                    
+                    <div class="row">
+                        <div>
+                            <label>Shop/CSP Name</label>
+                            <input type="text" id="in-shop-name" value="MY CSC CENTER" oninput="updateReceipt(); saveSettings();">
+                        </div>
+                        <div>
+                            <label>Address / Contact Info</label>
+                            <input type="text" id="in-shop-details" value="Main Market | Mob: 9876543210" oninput="updateReceipt(); saveSettings();">
+                        </div>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0 15px 0;">
+
+                    <div class="row">
+                        <div>
+                            <label>Transaction Type</label>
+                            <select id="in-type" onchange="updateReceipt()">
+                                <option value="AEPS Cash Withdrawal">AEPS Cash Withdrawal</option>
+                                <option value="Domestic Money Transfer">Domestic Money Transfer (DMT)</option>
+                                <option value="Aadhar Pay">Aadhar Pay</option>
+                                <option value="Balance Enquiry">Balance Enquiry</option>
+                                <option value="Mini Statement">Mini Statement</option>
+                                <option value="Utility Bill Payment">Utility Bill Payment</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Status</label>
+                            <select id="in-status" onchange="updateReceipt()" style="font-weight: bold;">
+                                <option value="SUCCESS" style="color: green;">Success</option>
+                                <option value="FAILED" style="color: red;">Failed</option>
+                                <option value="PENDING" style="color: orange;">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Customer Mobile</label>
+                            <input type="text" id="in-mobile" placeholder="e.g. 98765XXXXX" oninput="updateReceipt()" maxlength="10">
+                        </div>
+                        <div>
+                            <label>Bank Name</label>
+                            <input list="bank-list" id="in-bank" placeholder="Select or type bank..." oninput="updateReceipt()">
+                            <datalist id="bank-list">
+                                <option value="Airtel Payments Bank">
+                                <option value="Bank of Baroda">
+                                <option value="Bank of India">
+                                <option value="Dakshin Bihar Gramin Bank">
+                                <option value="Fino Payments Bank">
+                                <option value="HDFC Bank">
+                                <option value="India Post Payments Bank">
+                                <option value="Paytm Payments Bank">
+                                <option value="Punjab National Bank (PNB)">
+                                <option value="State Bank of India (SBI)">
+                                <option value="Uttar Bihar Gramin Bank">
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Aadhar / Acc No. (Last 4)</label>
+                            <input type="text" id="in-aadhar" placeholder="e.g. 1234" oninput="updateReceipt()" maxlength="4">
+                        </div>
+                        <div>
+                            <label>Txn ID / UTR / RRN</label>
+                            <input type="text" id="in-txn" placeholder="e.g. 301294829101" oninput="updateReceipt()">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Txn Amount (₹)</label>
+                            <input type="number" id="in-amount" placeholder="5000" oninput="updateReceipt()" style="font-size: 1.1rem; color: var(--primary-color);">
+                        </div>
+                        <div>
+                            <label>Available Balance (₹) [Optional]</label>
+                            <input type="number" id="in-balance" placeholder="1500" oninput="updateReceipt()">
+                        </div>
+                    </div>
+
+                    <button class="btn outline" style="width: 100%; margin-top: 10px;" onclick="clearForm()">🧹 Reset Form for Next Customer</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Live Preview & Export</div>
+                    
+                    <div class="receipt-wrapper">
+                        <div id="print-area">
+                            
+                            <div class="receipt" id="receipt-card">
+                                <div class="receipt-header">
+                                    <h2 class="out-shop-name">MY CSC CENTER</h2>
+                                    <p class="out-shop-details">Main Market | Mob: 9876543210</p>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="receipt-row"><span>Date & Time:</span><span class="out-datetime">--</span></div>
+                                <div class="receipt-row"><span>Receipt No:</span><span class="out-receipt-no">--</span></div>
+                                <div class="receipt-row"><span>Txn ID/RRN:</span><span class="out-txn">--</span></div>
+                                <div class="divider"></div>
+                                <div class="receipt-row"><span>Txn Type:</span><span class="out-type">AEPS Cash Withdrawal</span></div>
+                                <div class="receipt-row"><span>Bank:</span><span class="out-bank">--</span></div>
+                                <div class="receipt-row"><span>Aadhar No:</span><span class="out-aadhar">XXXXXXXX----</span></div>
+                                <div class="out-stamp status-stamp stamp-success">SUCCESS</div>
+                                <div class="receipt-amount"><span>TXN AMOUNT:</span><span class="out-amount">₹ 0.00</span></div>
+                                <div class="receipt-row balance-row" style="display: none;"><span>Available Balance:</span><span class="out-balance">₹ 0.00</span></div>
+                                <div class="divider"></div>
+                                <div class="barcode out-barcode">*123456*</div>
+                                <p class="receipt-footer">
+                                    <strong>*** CUSTOMER COPY ***</strong><br>
+                                    Thank you for transacting with us!<br>Computer generated receipt.
+                                </p>
+                            </div>
+
+                            <div id="merchant-receipt-container" style="display: none;">
+                                <div class="cut-line">✂ - - - - CUT HERE - - - - ✂</div>
+                                <div class="receipt">
+                                    <div class="receipt-header">
+                                        <h2 class="out-shop-name">MY CSC CENTER</h2>
+                                        <p class="out-shop-details">Main Market | Mob: 9876543210</p>
+                                    </div>
+                                    <div class="divider"></div>
+                                    <div class="receipt-row"><span>Date & Time:</span><span class="out-datetime">--</span></div>
+                                    <div class="receipt-row"><span>Receipt No:</span><span class="out-receipt-no">--</span></div>
+                                    <div class="receipt-row"><span>Txn ID/RRN:</span><span class="out-txn">--</span></div>
+                                    <div class="divider"></div>
+                                    <div class="receipt-row"><span>Txn Type:</span><span class="out-type">AEPS Cash Withdrawal</span></div>
+                                    <div class="receipt-row"><span>Bank:</span><span class="out-bank">--</span></div>
+                                    <div class="receipt-row"><span>Aadhar No:</span><span class="out-aadhar">XXXXXXXX----</span></div>
+                                    <div class="out-stamp status-stamp stamp-success">SUCCESS</div>
+                                    <div class="receipt-amount"><span>TXN AMOUNT:</span><span class="out-amount">₹ 0.00</span></div>
+                                    <div class="receipt-row balance-row" style="display: none;"><span>Available Balance:</span><span class="out-balance">₹ 0.00</span></div>
+                                    <div class="divider"></div>
+                                    <div class="barcode out-barcode">*123456*</div>
+                                    <p class="receipt-footer" style="text-align: left; margin-top: 15px;">
+                                        <strong>*** MERCHANT COPY ***</strong><br><br>
+                                        Customer Sign: _________________<br><br>
+                                        Agent Sign:    _________________
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                        <select id="print-copies" style="margin-bottom: 0;">
+                            <option value="1">Print 1 Copy (Customer)</option>
+                            <option value="2">Print 2 Copies (A4 Side-by-Side)</option>
+                        </select>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" style="flex: 1;" onclick="printSlip()">🖨️ Print Slip</button>
+                            <button class="btn success" style="flex: 1;" onclick="downloadWhatsAppImage()">📱 WhatsApp</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- Mobile Sidebar Toggle ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('mobile-overlay').classList.toggle('active');
+        }
+
+        // --- Dark Mode Logic ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        function formatRupees(amount) {
+            if(!amount) return "₹ 0.00";
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+        }
+
+        window.onload = function() {
+            // Show title on desktop, hide on mobile to save space
+            if(window.innerWidth > 768) document.querySelector('.desktop-title').style.display = 'block';
+
+            if(localStorage.getItem('csc_shop_name')) document.getElementById('in-shop-name').value = localStorage.getItem('csc_shop_name');
+            if(localStorage.getItem('csc_shop_details')) document.getElementById('in-shop-details').value = localStorage.getItem('csc_shop_details');
+            generateRandomIds();
+            updateReceipt();
+        }
+
+        function saveSettings() {
+            localStorage.setItem('csc_shop_name', document.getElementById('in-shop-name').value);
+            localStorage.setItem('csc_shop_details', document.getElementById('in-shop-details').value);
+        }
+
+        function generateRandomIds() {
+            document.getElementById('in-txn').value = Math.floor(Math.random() * 900000000000 + 100000000000);
+            setTexts('out-receipt-no', "RCPT" + Math.floor(Math.random() * 90000 + 10000));
+            setTexts('out-barcode', "*" + Math.floor(Math.random() * 900000 + 100000) + "*");
+        }
+
+        function setTexts(className, text) {
+            document.querySelectorAll('.' + className).forEach(el => el.innerText = text);
+        }
+
+        function updateReceipt() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-IN') + " " + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            
+            setTexts('out-datetime', dateStr);
+            setTexts('out-shop-name', document.getElementById('in-shop-name').value || "SHOP NAME");
+            setTexts('out-shop-details', document.getElementById('in-shop-details').value || "Address Details");
+            setTexts('out-type', document.getElementById('in-type').value);
+            setTexts('out-txn', document.getElementById('in-txn').value || "--");
+            
+            const bank = document.getElementById('in-bank').value;
+            setTexts('out-bank', bank ? bank : "--");
+
+            const aadhar = document.getElementById('in-aadhar').value;
+            setTexts('out-aadhar', aadhar ? `XXXXXXXX${aadhar}` : "XXXXXXXX----");
+
+            const amount = document.getElementById('in-amount').value;
+            setTexts('out-amount', formatRupees(amount));
+
+            const balance = document.getElementById('in-balance').value;
+            document.querySelectorAll('.balance-row').forEach(row => {
+                row.style.display = balance ? "flex" : "none";
+            });
+            if(balance) setTexts('out-balance', formatRupees(balance));
+
+            const statusVal = document.getElementById('in-status').value;
+            document.querySelectorAll('.out-stamp').forEach(box => {
+                box.innerText = statusVal;
+                box.className = "out-stamp status-stamp " + (statusVal === 'SUCCESS' ? 'stamp-success' : 'stamp-failed');
+            });
+        }
+
+        function clearForm() {
+            document.getElementById('in-mobile').value = "";
+            document.getElementById('in-bank').value = "";
+            document.getElementById('in-aadhar').value = "";
+            document.getElementById('in-amount').value = "";
+            document.getElementById('in-balance').value = "";
+            document.getElementById('in-status').value = "SUCCESS";
+            generateRandomIds();
+            updateReceipt();
+        }
+
+        // --- Print Logic for A4 ---
+        function printSlip() {
+            const mode = document.getElementById('print-copies').value;
+            const merchantCopy = document.getElementById('merchant-receipt-container');
+            
+            if(mode === "2") {
+                merchantCopy.style.display = "block";
+            } else {
+                merchantCopy.style.display = "none";
+            }
+            
+            window.print();
+            merchantCopy.style.display = "none";
+        }
+
+        // --- WhatsApp Logic ---
+        function downloadWhatsAppImage() {
+            const receiptDiv = document.getElementById('receipt-card'); 
+            
+            html2canvas(receiptDiv, {
+                scale: 2, 
+                backgroundColor: "#ffffff",
+                logging: false
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `AEPS_Receipt.jpg`;
+                link.href = imgData;
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

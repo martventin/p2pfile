@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Govt Form Smart Resizer - UtilityPro</title>
+   <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker Registered!', reg))
+                .catch(err => console.error('Service Worker Registration Failed!', err));
+            });
+        }
+    </script>
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">CSC / CSP Utilities</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 20px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.5rem;">Smart Auto-Resizer</h1>
+                <p style="opacity: 0.8; font-size: 0.9rem;">Instantly resize and compress photos/signatures to exact Government Portal requirements.</p>
+            </div>
+
+            <div class="split-grid">
+                
+                <div class="card">
+                    <div class="card-header">1. Upload & Settings</div>
+                    
+                    <label class="drop-zone">
+                        <input type="file" id="upload-image" accept="image/*" onchange="loadImage(this)">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px;">📸</div>
+                        <p id="file-name-display" style="font-weight: 600;">Click to upload Scanned Photo/Sign</p>
+                    </label>
+
+                    <label style="color: var(--primary-color);">Quick Presets</label>
+                    <select id="preset-selector" style="border-color: var(--primary-color);" onchange="applyPreset()">
+                        <option value="custom">-- Choose a Custom Preset --</option>
+                        <option value="pan_photo">PAN Card Photo (213x213 px, Under 30KB)</option>
+                        <option value="pan_sign">PAN Card Signature (400x200 px, Under 60KB)</option>
+                        <option value="passport">Standard Passport Photo (413x531 px, Under 50KB)</option>
+                        <option value="aadhar_doc">Aadhar Document Scan (700x700 px, Under 300KB)</option>
+                    </select>
+
+                    <div class="row">
+                        <div>
+                            <label>Exact Width (Pixels)</label>
+                            <input type="number" id="target-width" value="213">
+                        </div>
+                        <div>
+                            <label>Exact Height (Pixels)</label>
+                            <input type="number" id="target-height" value="213">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Maximum File Size (KB)</label>
+                            <input type="number" id="target-kb" value="30" style="color: var(--danger-color);">
+                        </div>
+                    </div>
+
+                    <button class="btn warning" id="btn-process" onclick="processImage()" disabled>⚙️ Resize & Compress Image</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">2. Result & Download</div>
+                    
+                    <div class="preview-box">
+                        <img id="result-preview" src="" style="display: none;" alt="Preview">
+                        <p id="preview-placeholder" style="opacity: 0.5; font-weight: 600;">Processed image will appear here</p>
+                    </div>
+
+                    <div class="stats-box">
+                        Final Size: <span id="out-kb">0.00 KB</span><br>
+                        Dimensions: <span id="out-dim">0 x 0</span>
+                    </div>
+
+                    <a id="btn-download" class="btn success" style="display: none;">💾 Download for Portal</a>
+                </div>
+
+            </div>
+
+            <div class="card" style="margin-top: 10px; padding: 0; overflow: hidden;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0; padding: 20px; border-bottom: none;">
+                    <h3 style="margin: 0; font-size: 1.1rem;">📜 Daily Resizing Log</h3>
+                    <button class="btn outline" style="padding: 5px 15px; font-size: 0.8rem;" onclick="clearHistory()">Clear</button>
+                </div>
+                <div style="overflow-x: auto; padding: 0 20px 20px 20px;">
+                    <table class="history-table">
+                        <thead><tr><th>Time</th><th>Action</th><th>Dimensions</th><th>Final Size</th></tr></thead>
+                        <tbody id="history-log">
+                            <tr><td colspan="4" style="text-align: center; opacity: 0.6;">No activity yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        // --- Mobile Sidebar Toggle ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('mobile-overlay').classList.toggle('active');
+        }
+
+        window.onload = function() {
+            if(window.innerWidth > 768) {
+                const title = document.querySelector('.desktop-title');
+                if(title) title.style.display = 'block';
+            }
+        }
+
+        // --- Dark Mode Logic ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        // --- Core Variables ---
+        let originalImage = null;
+        let originalFileName = "image.jpg";
+        let actionCount = 0;
+
+        // --- 1. Preset Data ---
+        const presets = {
+            pan_photo: { w: 213, h: 213, kb: 30 },
+            pan_sign: { w: 400, h: 200, kb: 60 },
+            passport: { w: 413, h: 531, kb: 50 },
+            aadhar_doc: { w: 700, h: 700, kb: 300 }
+        };
+
+        function applyPreset() {
+            const val = document.getElementById('preset-selector').value;
+            if (presets[val]) {
+                document.getElementById('target-width').value = presets[val].w;
+                document.getElementById('target-height').value = presets[val].h;
+                document.getElementById('target-kb').value = presets[val].kb;
+            }
+        }
+
+        // --- 2. Load Image ---
+        function loadImage(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                originalFileName = file.name;
+                document.getElementById('file-name-display').innerText = file.name;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImage = img;
+                        document.getElementById('btn-process').disabled = false;
+                        document.getElementById('btn-process').innerText = "⚙️ Resize & Compress Image";
+                    }
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- 3. Processing Loop ---
+        async function processImage() {
+            if (!originalImage) return;
+
+            const btn = document.getElementById('btn-process');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            const tWidth = parseInt(document.getElementById('target-width').value);
+            const tHeight = parseInt(document.getElementById('target-height').value);
+            const maxKB = parseInt(document.getElementById('target-kb').value);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = tWidth;
+            canvas.height = tHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill white background
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImage, 0, 0, tWidth, tHeight);
+
+            // Binary search compression
+            let minQuality = 0.01;
+            let maxQuality = 1.0;
+            let finalQuality = 0.9;
+            let finalDataUrl = "";
+            let finalSizeKB = 0;
+
+            for (let i = 0; i < 10; i++) {
+                finalQuality = (minQuality + maxQuality) / 2;
+                finalDataUrl = canvas.toDataURL('image/jpeg', finalQuality);
+                finalSizeKB = Math.round((finalDataUrl.length * (3/4)) / 1024);
+
+                if (finalSizeKB > maxKB) {
+                    maxQuality = finalQuality;
+                } else {
+                    minQuality = finalQuality;
+                }
+            }
+
+            if (finalSizeKB > maxKB) {
+                finalDataUrl = canvas.toDataURL('image/jpeg', 0.05);
+                finalSizeKB = Math.round((finalDataUrl.length * (3/4)) / 1024);
+            }
+
+            // Update UI
+            document.getElementById('preview-placeholder').style.display = "none";
+            const previewImg = document.getElementById('result-preview');
+            previewImg.src = finalDataUrl;
+            previewImg.style.display = "block";
+
+            document.getElementById('out-kb').innerText = finalSizeKB + " KB";
+            document.getElementById('out-kb').style.color = (finalSizeKB > maxKB) ? "red" : "green";
+            document.getElementById('out-dim').innerText = `${tWidth} x ${tHeight} px`;
+
+            const downloadBtn = document.getElementById('btn-download');
+            downloadBtn.href = finalDataUrl;
+            downloadBtn.download = `Govt_Ready_${originalFileName.split('.')[0]}.jpg`;
+            downloadBtn.style.display = "inline-flex";
+
+            logActivity(`Resized for Govt Portal`, `${tWidth}x${tHeight}`, `${finalSizeKB} KB`);
+
+            btn.innerText = "✅ Done! Ready to Download";
+            setTimeout(() => {
+                btn.innerText = "⚙️ Process Another";
+                btn.disabled = false;
+            }, 2000);
+        }
+
+        // --- History Log Logic ---
+        function logActivity(action, dim, size) {
+            const tbody = document.getElementById('history-log');
+            if (actionCount === 0) tbody.innerHTML = ''; 
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="opacity: 0.8;">${timeString}</td>
+                <td style="font-weight: 600;">${action}</td>
+                <td style="font-family: monospace;">${dim}</td>
+                <td><span class="badge" style="background: var(--primary-color); color: white;">${size}</span></td>
+            `;
+            tbody.prepend(row); 
+            actionCount++;
+        }
+
+        function clearHistory() {
+            document.getElementById('history-log').innerHTML = `<tr><td colspan="4" style="text-align: center; opacity: 0.6;">History cleared.</td></tr>`;
+            actionCount = 0;
+        }
+    </script>
+</body>
+</html>

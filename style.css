@@ -1,0 +1,167 @@
+/* ==========================================
+   UtilityPro - Master Stylesheet
+   ========================================== */
+
+/* Shared Theme Variables (With High-Contrast B&W Sidebar) */
+:root {
+    --primary-color: #4f46e5; 
+    --primary-hover: #4338ca;
+    --sidebar-bg: #000000; /* Pure Black */
+    --sidebar-text: #ffffff; /* Pure White */
+    --bg-color: #f3f4f6; 
+    --text-color: #111827;
+    --card-bg: #ffffff; 
+    --border-color: #e5e7eb;
+    --success-color: #10b981; 
+    --warning-color: #f59e0b; 
+    --danger-color: #ef4444;
+    --drop-zone-bg: #f8fafc; 
+    --drop-zone-hover: #eff6ff;
+    --input-bg: #ffffff;
+}
+
+/* Dark Mode Variables */
+body.dark-mode {
+    --bg-color: #111827; 
+    --text-color: #f3f4f6; 
+    --card-bg: #1f2937; 
+    --border-color: #374151; 
+    --sidebar-bg: #000000; /* Stays Black */
+    --input-bg: #374151;
+    --drop-zone-bg: #374151; 
+    --drop-zone-hover: #1e1b4b;
+}
+
+/* --- GLOBAL RESET & TYPOGRAPHY --- */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.3s, color 0.3s, transform 0.3s ease; }
+body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
+
+/* --- SIDEBAR & MOBILE OVERLAY --- */
+.sidebar { width: 260px; background-color: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; }
+.sidebar-header { padding: 24px 20px; font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
+.nav-links { list-style: none; padding: 20px 0; flex-grow: 1; overflow-y: auto; }
+.nav-links li { padding: 5px 20px; }
+.nav-links a { color: var(--sidebar-text); text-decoration: none; display: block; padding: 12px 15px; border-radius: 6px; font-weight: 500; transition: 0.2s; }
+
+/* Sleek B&W Active Button Highlight */
+.nav-links a.active { background-color: #ffffff; color: #000000 !important; font-weight: 700; }
+.nav-links a:hover:not(.active) { background-color: #222222; }
+
+.overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 15; }
+
+/* --- MAIN DASHBOARD LAYOUT --- */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; width: 100%; }
+header { background-color: var(--card-bg); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 10; }
+.header-left { display: flex; align-items: center; gap: 15px; }
+.menu-btn { display: none; font-size: 1.5rem; background: none; border: none; color: var(--text-color); cursor: pointer; padding: 5px; }
+.theme-toggle { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); }
+.dashboard-content { padding: 30px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+/* --- CARDS & GRIDS --- */
+.card, .tool-card { background-color: var(--card-bg); border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border-color); margin-bottom: 25px; }
+.card-header, .tool-header h3 { font-size: 1.25rem; font-weight: 600; color: var(--primary-color); margin-bottom: 15px; }
+.tool-header p { font-size: 0.85rem; opacity: 0.8; margin-top: 5px; }
+.split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: start; }
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; }
+
+/* --- FORM INPUTS & DROP ZONES --- */
+label { font-size: 0.85rem; font-weight: 600; opacity: 0.8; margin-bottom: 5px; display: block; }
+input[type="text"], input[type="number"], input[type="password"], select, textarea { width: 100%; padding: 12px 10px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background-color: var(--input-bg); color: var(--text-color); margin-bottom: 15px; font-weight: 500; font-size: 1rem; font-family: inherit;}
+input:focus, select:focus, textarea:focus { border-color: var(--primary-color); }
+input[type="color"] { padding: 0; cursor: pointer; height: 42px; width: 100%; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; background: none;}
+.row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+.row > div { flex: 1; min-width: 100px; }
+
+.drop-zone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 30px 20px; text-align: center; cursor: pointer; transition: 0.2s; background-color: var(--drop-zone-bg); margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+.drop-zone:hover { border-color: var(--primary-color); background-color: var(--drop-zone-hover); }
+.drop-zone input[type="file"] { display: none; }
+.drop-zone.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.file-name-display { font-size: 0.85rem; color: var(--primary-color); margin-top: 10px; font-weight: 600; word-break: break-all; }
+
+/* --- BUTTONS --- */
+.btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; text-decoration: none;}
+.btn:hover { background-color: var(--primary-hover); }
+.btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+.btn.outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+.btn.outline:hover { background: var(--primary-color); color: white; }
+.btn.success { background-color: var(--success-color); }
+.btn.success:hover { background-color: #059669; }
+.btn.danger { background-color: var(--danger-color); }
+.btn.danger:hover { background-color: #dc2626; }
+.btn.warning { background-color: var(--warning-color); color: white; }
+
+/* --- DATA TABLES & BADGES --- */
+.history-table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 15px; }
+.history-table th, .history-table td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); }
+.history-table th { font-weight: 600; opacity: 0.8; font-size: 0.9rem; }
+.badge { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+body.dark-mode .badge { background: #064e3b; color: #34d399; }
+
+/* ==========================================
+   APP-SPECIFIC WIDGET STYLES 
+   ========================================== */
+
+/* 1. Receipt Maker */
+.receipt-wrapper { display: flex; justify-content: center; background: #e2e8f0; padding: 30px; border-radius: 8px; overflow-x: auto;}
+.receipt { background: #ffffff; color: #000000; width: 100%; max-width: 340px; padding: 25px 20px; font-family: 'Consolas', 'Courier New', Courier, monospace; border: 1px solid #cbd5e1; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+.receipt-header { text-align: center; margin-bottom: 15px; }
+.receipt-header h2 { font-size: 1.3rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+.receipt-header p { font-size: 0.8rem; line-height: 1.3; }
+.divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+.receipt-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; line-height: 1.2; }
+.receipt-row span:last-child { font-weight: 600; text-align: right; word-break: break-all; max-width: 60%; }
+.receipt-amount { font-size: 1.2rem; font-weight: bold; margin: 15px 0; padding: 10px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; display: flex; justify-content: space-between; align-items: center; }
+.status-stamp { text-align: center; font-weight: bold; font-size: 1.1rem; margin: 15px 0; padding: 8px; border: 2px dashed; text-transform: uppercase; letter-spacing: 2px;}
+.stamp-success { color: #000; border-color: #000; } 
+.stamp-failed { color: #000; border-color: #000; background: #f3f4f6; }
+.barcode { text-align: center; font-family: 'Libre Barcode 39', cursive, sans-serif; font-size: 2rem; margin: 15px 0 5px 0; }
+.receipt-footer { text-align: center; font-size: 0.75rem; margin-top: 10px; }
+.cut-line { text-align: center; margin: 30px 0; border-top: 1px dashed #000; padding-top: 10px; font-size: 0.8rem; letter-spacing: 2px;}
+
+/* A4 Print Layout for Receipts */
+@media print {
+    body * { visibility: hidden; } 
+    #print-area, #print-area * { visibility: visible; } 
+    #print-area { position: absolute; left: 0; top: 0; margin: 0; padding: 15mm; width: 100%; display: flex; flex-direction: row; justify-content: flex-start; align-items: flex-start; }
+    .receipt { box-shadow: none; border: 1px solid #000 !important; padding: 15px; width: 85mm; max-width: 100%; page-break-inside: avoid; }
+    .receipt, .receipt * { color: #000 !important; background: transparent !important; }
+    .cut-line { display: none; } 
+    #merchant-receipt-container { display: block !important; margin-left: 10mm; padding-left: 10mm; border-left: 1px dashed #000; position: relative; }
+    #merchant-receipt-container::before { content: '✂'; position: absolute; left: -7px; top: 50%; transform: translateY(-50%); background: white; font-size: 16px; color: #000; }
+}
+
+/* 2. Password Vault */
+.lock-screen { padding: 40px; text-align: center; background: rgba(79, 70, 229, 0.1); border-radius: 12px; border: 2px dashed var(--primary-color); }
+.hidden-password { letter-spacing: 3px; font-weight: bold; opacity: 0.5; }
+
+/* 3. Image Overlayer & Resizer */
+.canvas-container { position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: #e2e8f0; display: flex; justify-content: center; align-items: center; padding: 5px;}
+canvas { display: block; max-width: 100%; height: auto; cursor: crosshair; touch-action: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
+.preview-box { width: 100%; min-height: 250px; border: 1px solid var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; background-image: repeating-linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb), repeating-linear-gradient(45deg, #e5e7eb 25%, var(--card-bg) 25%, var(--card-bg) 75%, #e5e7eb 75%, #e5e7eb); background-position: 0 0, 10px 10px; background-size: 20px 20px; margin-bottom: 15px; overflow: hidden; padding: 10px;}
+.preview-box img { max-width: 100%; max-height: 300px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.stats-box { background: var(--input-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; text-align: center; font-family: monospace; font-size: 1.1rem; margin-bottom: 15px; word-break: break-all;}
+
+/* 4. Local Drop */
+.status-badge { padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 20px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.status-badge.connected { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.file-list { margin-top: 20px; list-style: none; padding: 0; }
+.file-list li { background: var(--input-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; word-break: break-all; gap: 10px; }
+
+/* --- UNIVERSAL MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) { 
+    .menu-btn { display: block; }
+    .sidebar { position: fixed; top: 0; left: 0; height: 100vh; transform: translateX(-100%); }
+    .sidebar.active { transform: translateX(0); }
+    .overlay.active { display: block; }
+    
+    .dashboard-content { padding: 15px; }
+    .card, .tool-card { padding: 15px; }
+    .split-grid, .tools-grid { grid-template-columns: 1fr; gap: 15px; }
+    .row { flex-direction: column; align-items: stretch; gap: 10px; }
+    
+    /* Specific tweaks for small screens */
+    .controls-grid { grid-template-columns: 1fr; display: flex; flex-direction: column-reverse; gap: 20px;}
+    .receipt { padding: 15px; } 
+    .lock-screen { padding: 20px 15px; }
+}
+

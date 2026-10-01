@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Customer CRM - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('✓ Service Worker registered - App works offline!'))
+                .catch(err => console.warn('Service Worker registration failed:', err));
+        }
+    </script>
+    
+    <style>
+        .crm-grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start; }
+        @media (max-width: 900px) { .crm-grid { grid-template-columns: 1fr; } }
+
+        .header-left .menu-btn { display: inline-block !important; margin-right: 15px; background: var(--border-color); color: var(--text-color); border-radius: 4px; padding: 5px 10px; cursor: pointer; border: none; }
+        body { display: flex; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        #sidebar-container { flex-shrink: 0; transition: transform 0.3s ease, margin 0.3s ease; }
+        .main-content { flex-grow: 1; transition: width 0.3s ease, margin 0.3s ease; width: 100%; overflow-x: hidden;}
+        @media (min-width: 769px) { body.desktop-sidebar-hidden #sidebar-container { margin-left: -260px !important; } }
+
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; background: var(--drop-zone-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap;}
+        .filter-bar input { margin-bottom: 0; flex: 1; min-width: 200px;}
+        .data-table-container { overflow-x: auto; width: 100%; max-height: 600px; border-radius: 8px; border: 1px solid var(--border-color);}
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap;}
+        .data-table th, .data-table td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); }
+        .data-table th { background: var(--sidebar-bg); color: var(--sidebar-text); position: sticky; top: 0; z-index: 1;}
+        
+        .status-select { padding: 5px; border-radius: 4px; font-weight: bold; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); cursor: pointer; outline: none;}
+        .status-select.paid { color: #059669; border-color: #059669; background: #d1fae5;}
+        .status-select.due { color: #dc2626; border-color: #dc2626; background: #fee2e2;}
+        .status-select.advance { color: #d97706; border-color: #d97706; background: #fef3c7;}
+
+        .action-btn { padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; border: none; font-weight: bold; text-decoration: none; display: inline-block;}
+        .btn-del { background: #fee2e2; color: #991b1b; }
+        .btn-wa { background: #25D366; color: white; }
+
+        .customer-profile-card { display: none; background: rgba(16, 185, 129, 0.1); border: 1px dashed var(--success-color); padding: 15px; border-radius: 8px; margin-bottom: 15px; animation: fadeIn 0.3s ease;}
+        .profile-title { font-size: 0.85rem; color: var(--success-color); font-weight: bold; margin-bottom: 5px; text-transform: uppercase;}
+        
+        #sync-loader { display: none; position: fixed; top: 20px; right: 20px; background: var(--primary-color); color: #fff; padding: 10px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; animation: pulse 1s infinite;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: var(--bg-color); padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        
+        .mobile-link { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: bold; font-family: monospace; font-size: 1rem; }
+        .mobile-link:hover { color: var(--primary-hover); }
+        .history-modal-box { max-width: 700px !important; width: 95%; max-height: 90vh; overflow-y: auto; }
+        .history-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+        .history-stats { display: flex; gap: 10px; background: var(--drop-zone-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap;}
+        .stat-box { flex: 1; text-align: center; min-width: 120px;}
+        .stat-value { font-size: 1.4rem; font-weight: 900; color: var(--primary-color); }
+        .stat-profit { color: var(--success-color); }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+    <div id="sync-loader">☁️ Syncing Data...</div>
+    <div id="offline-indicator" style="display: none; position: fixed; top: 20px; right: 20px; background: #dc2626; color: white; padding: 12px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 9998; animation: pulse 1s infinite; margin-top: 60px;">⚠️ OFFLINE - Data will sync when server returns</div>
+    <div id="queue-status" style="display: none; position: fixed; top: 20px; right: 20px; background: #f59e0b; color: white; padding: 12px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 9998; margin-top: 130px;"></div>
+
+    <div class="modal-overlay" id="cloud-modal">
+        <div class="modal-box">
+            <h2>📡 UtilityPro Server Status</h2>
+            <div style="background: var(--drop-zone-bg); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <div style="margin-bottom: 10px;">
+                    <strong>📁 Static Files (always running):</strong><br>
+                    <code style="font-size: 0.9rem;">http://192.168.1.105:8000</code>
+                </div>
+                <div>
+                    <strong>📊 API Server:</strong><br>
+                    <code style="font-size: 0.9rem;">http://192.168.1.105:3000</code>
+                </div>
+            </div>
+            <p style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 10px;">
+                ✓ App loads from port 8000 (stays up)<br>
+                ✓ API on port 3000 (can restart)<br>
+                ✓ Offline mode: Works without API
+            </p>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn success" style="flex: 1;" onclick="saveCloudSettings()">✓ Understood</button>
+                <button class="btn outline" style="flex: 1;" onclick="closeModal('cloud-modal')">Close</button>
+            </div>
+            <div id="auth-status" style="margin-top: 15px; font-size: 0.85rem; font-weight: bold; text-align: center; color: var(--primary-color);"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="profile-modal">
+        <div class="modal-box">
+            <h2>🏪 Retailer Profile</h2>
+            <label>Shop / Center Name</label>
+            <input type="text" id="shop-name-input" placeholder="e.g. Airtel Payments Bank Center">
+            <label>Shop Contact Number</label>
+            <input type="text" id="shop-phone-input" placeholder="e.g. 9876543210" maxlength="10">
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn success" style="flex: 1;" onclick="saveShopProfile()">💾 Save Profile</button>
+                <button class="btn outline" style="flex: 1;" onclick="closeModal('profile-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal-box history-modal-box">
+            <div class="history-header">
+                <div>
+                    <h2 style="margin:0; font-size: 1.5rem;" id="hist-name">Customer Name</h2>
+                    <p style="margin:5px 0 0 0; opacity:0.8; font-size:0.9rem; font-family: monospace;" id="hist-details">📱 Mobile | 🏠 Address</p>
+                </div>
+                <button class="action-btn btn-del" onclick="closeModal('history-modal')">✖ Close</button>
+            </div>
+            
+            <div class="history-stats">
+                <div class="stat-box">
+                    <div style="font-size:0.8rem; opacity:0.8; text-transform:uppercase; font-weight: bold;">Total Visits</div>
+                    <div class="stat-value" id="hist-visits">0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.8rem; opacity:0.8; text-transform:uppercase; font-weight: bold;">Total Business</div>
+                    <div class="stat-value" id="hist-total">₹0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.8rem; opacity:0.8; text-transform:uppercase; font-weight: bold; color: var(--success-color);">Total Profit</div>
+                    <div class="stat-value stat-profit" id="hist-profit">₹0</div>
+                </div>
+            </div>
+
+            <div class="data-table-container" style="max-height: 300px; border: 1px solid var(--border-color);">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Service Done</th>
+                            <th>Amount (₹)</th>
+                            <th>Profit (₹)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hist-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="forceToggleSidebar()">☰ Menu</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: inline-block;" class="desktop-title">Customer CRM</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h1 style="margin-bottom: 5px; font-size: 1.5rem;">SaaS Customer CRM</h1>
+                    <p style="opacity: 0.8; font-size: 0.9rem;">Track Customer History, Total Business, and Net Profit.</p>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn outline" style="width: auto; padding: 10px 15px; border-color: var(--primary-color); color: var(--primary-color);" onclick="openModal('cloud-modal')">☁️ Cloud Setup</button>
+                    <button class="btn outline" style="width: auto; padding: 10px 15px;" onclick="openModal('profile-modal')">🏪 Shop Profile</button>
+                    <button class="btn success" style="width: auto; padding: 10px 15px;" onclick="exportToExcel()">📊 Export Excel</button>
+                </div>
+            </div>
+
+            <div class="crm-grid">
+                
+                <div class="card">
+                    <div class="card-header">Add New Task</div>
+                    
+                    <label>Mobile No. (Type to search)</label>
+                    <input type="number" id="c-mobile" placeholder="10 Digit Number" onkeyup="checkExistingCustomer()">
+
+                    <div id="smart-profile" class="customer-profile-card">
+                        <div class="profile-title">🌟 Returning Customer Found!</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <div class="profile-stats">Business: <span id="prof-total">₹0</span></div>
+                            <div class="profile-stats" style="color: var(--success-color);">Profit: <span id="prof-profit">₹0</span></div>
+                        </div>
+                    </div>
+
+                    <label>Customer Name</label>
+                    <input type="text" id="c-name" placeholder="Full Name">
+                    <label>Address / Village</label>
+                    <input type="text" id="c-address" placeholder="Address">
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+                    <label>Date & Time</label>
+                    <input type="datetime-local" id="c-date">
+                    <label>Service / Work Done</label>
+                    <input list="service-list" id="c-service" placeholder="e.g. PAN Card, AEPS">
+                    <datalist id="service-list">
+                        <option value="AEPS Cash Withdrawal">
+                        <option value="PAN Card Apply">
+                        <option value="Income/Caste Certificate">
+                        <option value="Money Transfer (DMT)">
+                        <option value="Bank Account Opening">
+                    </datalist>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label>Amount (₹)</label>
+                            <input type="number" id="c-amount" placeholder="0">
+                        </div>
+                        <div>
+                            <label>Profit / Comm. (₹)</label>
+                            <input type="number" id="c-profit" placeholder="0" style="border-color: var(--success-color);">
+                        </div>
+                    </div>
+                    <div style="margin-top: 5px;">
+                        <label>Payment Status</label>
+                        <select id="c-status">
+                            <option value="Paid">Fully Paid</option>
+                            <option value="Due">Due (बाकी है)</option>
+                            <option value="Advance">Advance Given</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" style="margin-top: 15px;" onclick="saveTransactionToCloud()">☁️ Save to Google Sheet</button>
+                </div>
+
+                <div class="card" style="padding: 15px; overflow: hidden;">
+                    <div class="card-header" style="margin-bottom: 10px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Live Database</span>
+                        <button class="action-btn" style="background: var(--primary-color); color: white;" onclick="fetchFromCloud()">🔄 Refresh</button>
+                    </div>
+                    
+                    <div class="filter-bar">
+                        <input type="text" id="search-box" placeholder="🔍 Search by Name or Mobile..." onkeyup="searchTable()">
+                        <div style="font-size: 0.85rem; font-weight: bold; opacity: 0.8; white-space: nowrap;">
+                            Total: <span id="total-count">0</span>
+                        </div>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table" id="customer-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Name & Info</th>
+                                    <th>Mobile (History)</th>
+                                    <th>Service Done</th>
+                                    <th>Amount & Profit</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <tr><td colspan="7" style="text-align:center; opacity: 0.7;">Click "Cloud Setup" to connect to P2P server and view data.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script>
+        // Initialize P2P Client
+        let p2pClient = new P2PClient();
+        let cloudData = []; 
+
+        // ====== OFFLINE QUEUE LISTENER ======
+        p2pClient.onConnectionStatusChange((status) => {
+            console.log('📡 Connection status:', status);
+            const offlineIndicator = document.getElementById('offline-indicator');
+            const queueStatus = document.getElementById('queue-status');
+            
+            if (status.status === 'connected') {
+                console.log('✅ Connected to server');
+                offlineIndicator.style.display = 'none';
+                if (status.queueSize === 0) {
+                    queueStatus.style.display = 'none';
+                }
+            } else if (status.status === 'disconnected') {
+                console.log('❌ Disconnected from server');
+                offlineIndicator.style.display = 'block';
+                if (status.queueSize > 0) {
+                    queueStatus.style.display = 'block';
+                    queueStatus.innerText = `📦 ${status.queueSize} pending item(s)`;
+                }
+            } else if (status.status === 'queued') {
+                console.log('📦 Data queued for later sync');
+                queueStatus.style.display = 'block';
+                queueStatus.innerText = `📦 ${status.queueSize} pending item(s)`;
+            } else if (status.status === 'synced') {
+                console.log('✅ Data synced from queue!');
+                if (status.queueSize === 0) {
+                    queueStatus.style.display = 'none';
+                    setTimeout(() => queueStatus.style.display = 'none', 3000);
+                } else {
+                    queueStatus.innerText = `📦 ${status.queueSize} pending item(s)`;
+                }
+            }
+        });
+
+        function forceToggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            if (window.innerWidth <= 768) {
+                if(sidebar) sidebar.classList.toggle('active');
+                if(overlay) overlay.classList.toggle('active');
+            } else {
+                document.body.classList.toggle('desktop-sidebar-hidden');
+            }
+        }
+
+        window.onload = function() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('c-date').value = now.toISOString().slice(0,16);
+
+            // Auto-connect to P2P server
+            p2pClient.connectToHost(SERVER_URL).then(result => {
+                if (result.success) {
+                    console.log('✓ Connected to P2P server');
+                    p2pClient.startAutoSync(5000);
+                    updateAuthStatus();
+                    fetchFromCloud();
+                }
+            });
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            document.getElementById('theme-btn').innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+        }
+        if(localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); document.getElementById('theme-btn').innerText = '☀️'; }
+
+        function openModal(id) { 
+            document.getElementById(id).style.display = 'flex'; 
+            if(id === 'profile-modal') {
+                document.getElementById('shop-name-input').value = localStorage.getItem('csc_shop_name') || '';
+                document.getElementById('shop-phone-input').value = localStorage.getItem('csc_shop_phone') || '';
+            } else if (id === 'cloud-modal') {
+                updateAuthStatus();
+            }
+        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function saveShopProfile() {
+            localStorage.setItem('csc_shop_name', document.getElementById('shop-name-input').value.trim());
+            localStorage.setItem('csc_shop_phone', document.getElementById('shop-phone-input').value.trim());
+            closeModal('profile-modal');
+        }
+
+        function saveCloudSettings() {
+            // No longer needed - P2P server is auto-configured in config.js
+            closeModal('cloud-modal');
+            
+            // Auto-connect to P2P server
+            p2pClient.connectToHost(SERVER_URL).then(result => {
+                if (result.success) {
+                    updateAuthStatus();
+                    fetchFromCloud();
+                } else {
+                    alert('Could not connect to P2P server: ' + result.error);
+                }
+            });
+        }
+
+        function updateAuthStatus() {
+            const hasConnection = p2pClient.isHostConnected();
+            document.getElementById('auth-status').innerText = hasConnection ? "✅ Connected to P2P Server" : "🔄 Connecting...";
+        }
+
+        function showLoader(show) { document.getElementById('sync-loader').style.display = show ? 'block' : 'none'; }
+
+        async function fetchFromCloud() {
+            showLoader(true);
+            try {
+                const response = await fetch(`${SERVER_URL}/api/customers`);
+                const data = await response.json();
+                cloudData = data.customers || []; 
+                renderTable();
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                alert('Error connecting to server. Make sure it is running!');
+            }
+            showLoader(false);
+        }
+
+        async function saveTransactionToCloud() {
+            const mobile = document.getElementById('c-mobile').value.trim();
+            const name = document.getElementById('c-name').value.trim();
+            const address = document.getElementById('c-address').value.trim();
+            const dateInput = document.getElementById('c-date').value;
+            const service = document.getElementById('c-service').value.trim();
+            const amount = document.getElementById('c-amount').value || 0;
+            const profit = document.getElementById('c-profit').value || 0;
+            const status = document.getElementById('c-status').value;
+
+            if(!mobile || !name || !service) return alert("Mobile, Name, and Service are required!");
+
+            const d = new Date(dateInput);
+            const dateStr = d.toLocaleDateString('en-IN') + " " + d.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
+
+            const nameParts = name.split(' ');
+            const customerData = { 
+                firstName: nameParts[0],
+                lastName: nameParts.slice(1).join(' '),
+                phone: mobile, 
+                address: address,
+                services: service,
+                amount: amount,
+                profit: profit,
+                status: status,
+                date: dateStr  // Add date to saved data
+            };
+
+            console.log('💾 Saving transaction:', customerData);
+            showLoader(true);
+            try {
+                const response = await fetch(`${SERVER_URL}/api/customers/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(customerData)
+                });
+                const result = await response.json();
+                console.log('📨 Server response:', result);
+                
+                if (result.success) {
+                    alert('✅ Transaction saved successfully!');
+                    
+                    // Clear form completely
+                    document.getElementById('c-mobile').value = "";
+                    document.getElementById('c-name').value = "";
+                    document.getElementById('c-address').value = "";
+                    document.getElementById('c-service').value = ""; 
+                    document.getElementById('c-amount').value = ""; 
+                    document.getElementById('c-profit').value = ""; 
+                    document.getElementById('c-status').selectedIndex = 0; 
+                    document.getElementById('smart-profile').style.display = "none";
+                    
+                    // Reset date to current datetime
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    document.getElementById('c-date').value = now.toISOString().slice(0, 16);
+                    
+                    // Sync to P2P network
+                    await p2pClient.pushChanges([{
+                        action: 'INSERT',
+                        table: 'customers',
+                        data: customerData,
+                        timestamp: Date.now()
+                    }]);
+                    
+                    // Sync with other devices
+                    await p2pClient.syncDatabase();
+                    
+                    fetchFromCloud(); 
+                } else {
+                    console.error('❌ Server error:', result.error);
+                    alert("Error saving customer: " + result.error);
+                }
+            } catch (error) { 
+                console.error('Connection error:', error);
+                
+                // Queue the data for later sync
+                const queueId = p2pClient.addToQueue([{
+                    action: 'INSERT',
+                    table: 'customers',
+                    data: customerData,
+                    timestamp: Date.now()
+                }], { type: 'new_customer', phone: mobile });
+                
+                // Clear form completely
+                document.getElementById('c-mobile').value = "";
+                document.getElementById('c-name').value = "";
+                document.getElementById('c-address').value = "";
+                document.getElementById('c-service').value = ""; 
+                document.getElementById('c-amount').value = ""; 
+                document.getElementById('c-profit').value = ""; 
+                document.getElementById('c-status').selectedIndex = 0; 
+                document.getElementById('smart-profile').style.display = "none";
+                
+                // Reset date to current datetime
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('c-date').value = now.toISOString().slice(0, 16);
+                
+                alert('⏸️ Server is offline!\n\n✅ Your entry has been saved locally.\n\n📦 It will automatically sync when the server comes back online.\n\n📌 Queue ID: ' + queueId);
+                console.log('Queued entry ID:', queueId);
+            }
+            showLoader(false);
+        }
+
+        async function updateStatusInCloud(txId, newStatus, selectElement, mobile, service, amount) {
+            let oldStatus = selectElement.getAttribute('data-old');
+            if (oldStatus === newStatus) return;
+
+            const customer = cloudData.find(c => c.id == txId);
+            const custName = getCustomerField(customer, ['full_name', 'firstName', 'name']) || "Customer";
+            let shopName = localStorage.getItem('csc_shop_name') || "Our Service Center";
+            let shopPhone = localStorage.getItem('csc_shop_phone') || "";
+
+            if (confirm(`Change status to ${newStatus}?`)) {
+                showLoader(true);
+                try {
+                    console.log('🔄 Updating status for:', txId, 'to', newStatus);
+                    const response = await fetch(`${SERVER_URL}/api/customers/${txId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    
+                    const result = await response.json();
+                    console.log('📨 Server response:', result);
+                    
+                    if (result.success) {
+                        selectElement.className = `status-select ${newStatus.toLowerCase()}`; 
+                        selectElement.setAttribute('data-old', newStatus); 
+                    
+                        let message = `*Payment Status Update* 🔔\n------------------------\nHello *${custName}*,\n\nYour payment status for *${service}* has been updated.\n\n💰 *Total Amount:* ₹${amount}\n🔄 *Status Changed:* ${oldStatus} ➡️ *${newStatus}*\n\nThank you for your visit!\n\n🏪 *${shopName}*\n`;
+                        if(shopPhone) message += `📞 Contact: ${shopPhone}\n`;
+                        window.open(`https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`, '_blank');
+                        
+                        // Sync to P2P network
+                        await p2pClient.pushChanges([{
+                            action: 'UPDATE',
+                            table: 'customers',
+                            customerId: txId,
+                            status: newStatus,
+                            timestamp: Date.now()
+                        }]);
+                        
+                        // Sync with other devices
+                        await p2pClient.syncDatabase();
+                    } else {
+                        console.error('❌ Update failed:', result.error);
+                        throw new Error(result.error);
+                    }
+                } catch(error) { 
+                    console.error('Error:', error);
+                    alert("Failed to update status: " + error.message); 
+                    selectElement.value = oldStatus; 
+                } 
+                showLoader(false);
+            } else { selectElement.value = oldStatus; }
+        }
+
+        async function deleteTx(id) {
+            if(confirm("Delete this transaction?")) {
+                showLoader(true);
+                try { 
+                    console.log('🗑️ Deleting customer:', id);
+                    const response = await fetch(`${SERVER_URL}/api/customers/${id}`, { 
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    console.log('📨 Server response:', result);
+                    
+                    if (result.success) {
+                        alert('✅ Customer deleted successfully!');
+                        
+                        // Sync to P2P network
+                        await p2pClient.pushChanges([{
+                            action: 'DELETE',
+                            table: 'customers',
+                            customerId: id,
+                            timestamp: Date.now()
+                        }]);
+                        
+                        // Sync with other devices
+                        await p2pClient.syncDatabase();
+                        
+                        fetchFromCloud();
+                    } else {
+                        console.error('❌ Delete failed:', result.error);
+                        alert("Failed to delete: " + result.error);
+                    }
+                } 
+                catch(error) {
+                    console.error('Error:', error);
+                    alert("Failed to delete: " + error.message); 
+                }
+                showLoader(false);
+            }
+        }
+
+        function showCustomerHistory(mobileStr) {
+            const history = cloudData.filter(t => {
+                const custPhone = getCustomerField(t, ['phone', 'mobile']);
+                const custName = getCustomerField(t, ['full_name', 'name', 'firstName']);
+                return custPhone == mobileStr && custName !== "DELETED";
+            });
+            if(history.length === 0) return;
+
+            const cust = history[0];
+            const custName = getCustomerField(cust, ['full_name', 'name', 'firstName']);
+            const custPhone = getCustomerField(cust, ['phone', 'mobile']);
+            const custAddress = getCustomerField(cust, ['address']);
+            
+            document.getElementById('hist-name').innerText = custName;
+            document.getElementById('hist-details').innerText = `📱 ${custPhone} | 🏠 ${custAddress}`;
+
+            document.getElementById('hist-visits').innerText = history.length;
+            
+            let totalAmt = 0;
+            let totalProfit = 0;
+            let tbodyHTML = "";
+
+            history.forEach(t => {
+                const amount = Number(getCustomerField(t, ['amount']) || 0);
+                const profit = Number(getCustomerField(t, ['profit']) || 0);
+                const service = getCustomerField(t, ['services', 'service']);
+                const status = getCustomerField(t, ['status']) || 'Due';
+                const date = getCustomerField(t, ['date', 'created_at']) || new Date().toLocaleDateString('en-IN');
+                
+                totalAmt += amount;
+                totalProfit += profit;
+                
+                let statusColor = status === 'Paid' ? '#059669' : (status === 'Due' ? '#dc2626' : '#d97706');
+                if(document.body.classList.contains('dark-mode')) {
+                    statusColor = status === 'Paid' ? '#34d399' : (status === 'Due' ? '#fca5a5' : '#fcd34d');
+                }
+
+                tbodyHTML += `<tr><td style="font-size: 0.85rem;">${date}</td><td style="font-weight: bold;">${service}</td><td style="font-family: monospace; font-weight: bold;">₹ ${amount}</td><td style="color: var(--success-color); font-weight: bold;">+₹ ${profit}</td><td style="color: ${statusColor}; font-weight: bold;">${status}</td></tr>`;
+            });
+
+            document.getElementById('hist-total').innerText = "₹ " + totalAmt;
+            document.getElementById('hist-profit').innerText = "₹ " + totalProfit;
+            document.getElementById('hist-table-body').innerHTML = tbodyHTML;
+
+            openModal('history-modal');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const activeData = cloudData.filter(t => {
+                const name = getCustomerField(t, ['full_name', 'name', 'firstName']);
+                return name !== "DELETED" && name !== '';
+            });
+            document.getElementById('total-count').innerText = activeData.length;
+            tbody.innerHTML = "";
+            
+            if(activeData.length === 0) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No data found. Add your first customer!</td></tr>`; return; }
+
+            activeData.forEach(t => {
+                const custName = getCustomerField(t, ['full_name', 'name', 'firstName']);
+                const custPhone = getCustomerField(t, ['phone', 'mobile']);
+                const custAddress = getCustomerField(t, ['address']);
+                const service = getCustomerField(t, ['services', 'service']);
+                const amount = getCustomerField(t, ['amount']) || 0;
+                const profit = getCustomerField(t, ['profit']) || 0;
+                const status = getCustomerField(t, ['status']) || 'Due';
+                const date = getCustomerField(t, ['date', 'created_at']) || new Date().toLocaleDateString('en-IN');
+                
+                let statusClass = String(status).toLowerCase();
+                let selectHTML = `<select class="status-select ${statusClass}" data-old="${status}" onchange="updateStatusInCloud('${t.id}', this.value, this, '${custPhone}', '${service}', '${amount}')"><option value="Paid" ${status === 'Paid' ? 'selected' : ''}>Paid</option><option value="Due" ${status === 'Due' ? 'selected' : ''}>Due</option><option value="Advance" ${status === 'Advance' ? 'selected' : ''}>Advance</option></select>`;
+                
+                let shopName = localStorage.getItem('csc_shop_name') || "Our Center";
+                let quickChat = `https://wa.me/91${custPhone}?text=Hello ${custName}, this is a message from ${shopName} regarding your ${service}...`;
+                let waButton = `<a href="${quickChat}" target="_blank" class="action-btn btn-wa">💬 Chat</a>`;
+
+                let mobileLink = `<a class="mobile-link" onclick="showCustomerHistory('${custPhone}')">${custPhone}</a>`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td style="font-size: 0.85rem;">${date}</td><td style="font-weight: bold;">${custName} <br><span style="font-size: 0.75rem; font-weight: normal; opacity: 0.7;">${custAddress}</span></td><td>${mobileLink}</td><td>${service}</td><td><div style="font-weight: bold; font-size: 1.1rem;">₹ ${amount}</div><div style="color: var(--success-color); font-size: 0.8rem; font-weight: bold;">+₹ ${profit} Profit</div></td><td>${selectHTML}</td><td>${waButton} <button class="action-btn btn-del" onclick="deleteTx('${t.id}')" style="margin-left: 5px;">✖</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function checkExistingCustomer() {
+            const mobile = document.getElementById('c-mobile').value.trim();
+            const profileCard = document.getElementById('smart-profile');
+            if (mobile.length >= 10 && cloudData.length > 0) {
+                const custRecords = cloudData.filter(c => {
+                    const custPhone = getCustomerField(c, ['phone', 'mobile']);
+                    const custName = getCustomerField(c, ['full_name', 'name', 'firstName']);
+                    return custPhone == mobile && custName !== "DELETED";
+                }); 
+                if (custRecords.length > 0) {
+                    const cust = custRecords[0];
+                    const custName = getCustomerField(cust, ['full_name', 'name', 'firstName']);
+                    const custAddress = getCustomerField(cust, ['address']);
+                    
+                    document.getElementById('c-name').value = custName; 
+                    document.getElementById('c-address').value = custAddress;
+                    
+                    const totalAmount = custRecords.reduce((sum, record) => sum + Number(getCustomerField(record, ['amount']) || 0), 0);
+                    const totalProfit = custRecords.reduce((sum, record) => sum + Number(getCustomerField(record, ['profit']) || 0), 0);
+                    
+                    document.getElementById('prof-total').innerText = "₹ " + totalAmount;
+                    document.getElementById('prof-profit').innerText = "₹ " + totalProfit;
+                    profileCard.style.display = "block"; 
+                    return;
+                }
+            }
+            profileCard.style.display = "none";
+        }
+
+        // ====== HELPER: Convert form field names to database column names ======
+        function convertFormDataToDBFormat(formData) {
+            const fieldMapping = {
+                'firstName': 'first_name',
+                'lastName': 'last_name',
+                'phone': 'phone',
+                'mobile': 'phone',
+                'address': 'address',
+                'services': 'services',
+                'service': 'services',
+                'amount': 'amount',
+                'profit': 'profit',
+                'status': 'status'
+            };
+
+            const skipFields = ['c-date', 'c-service-input', 'submit', 'reset'];
+            const convertedData = {};
+            
+            for (const [key, value] of Object.entries(formData)) {
+                if (skipFields.includes(key) || !fieldMapping[key]) continue;
+                const dbColumnName = fieldMapping[key];
+                if (value !== '' && value !== undefined && value !== null) {
+                    convertedData[dbColumnName] = value;
+                }
+            }
+
+            if (convertedData['first_name'] || convertedData['last_name']) {
+                convertedData['full_name'] = `${convertedData['first_name'] || ''} ${convertedData['last_name'] || ''}`.trim();
+            }
+
+            return convertedData;
+        }
+
+        // ====== HELPER: Extract customer fields (handle both name formats) ======
+        function getCustomerField(customer, fieldVariants) {
+            if (!customer) return '';
+            return fieldVariants.map(field => customer[field]).find(v => v !== undefined && v !== null && v !== '') || '';
+        }
+
+        function searchTable() {
+            let input = document.getElementById("search-box").value.toUpperCase();
+            let tr = document.getElementById("customer-table").getElementsByTagName("tr");
+            for (let i = 1; i < tr.length; i++) { 
+                let tdName = tr[i].getElementsByTagName("td")[1], tdMobile = tr[i].getElementsByTagName("td")[2];
+                if (tdName || tdMobile) tr[i].style.display = ((tdName.textContent || tdName.innerText).toUpperCase().indexOf(input) > -1 || (tdMobile.textContent || tdMobile.innerText).toUpperCase().indexOf(input) > -1) ? "" : "none";
+            }
+        }
+
+        function exportToExcel() {
+            if(cloudData.length === 0) return alert("No data to export!");
+            let csvContent = "Date,Customer Name,Mobile,Address,Service Done,Amount(INR),Profit(INR),Payment Status\n";
+            cloudData.filter(t => {
+                const name = getCustomerField(t, ['full_name', 'name', 'firstName']);
+                return name !== "DELETED";
+            }).forEach(t => {
+                const date = getCustomerField(t, ['date', 'created_at']);
+                const custName = getCustomerField(t, ['full_name', 'name', 'firstName']);
+                const custPhone = getCustomerField(t, ['phone', 'mobile']);
+                const custAddress = getCustomerField(t, ['address']);
+                const service = getCustomerField(t, ['services', 'service']);
+                const amount = getCustomerField(t, ['amount']) || 0;
+                const profit = getCustomerField(t, ['profit']) || 0;
+                const status = getCustomerField(t, ['status']) || 'Due';
+                
+                csvContent += `"${date}","${custName}","${custPhone}","${custAddress}","${service}","${amount}","${profit}","${status}"\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url); link.setAttribute("download", `CSC_Ledger_${new Date().toLocaleDateString('en-IN')}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

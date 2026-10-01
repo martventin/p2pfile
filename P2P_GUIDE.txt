@@ -1,0 +1,330 @@
+P2P DIRECT PEER-TO-PEER COMMUNICATION GUIDE
+============================================
+
+This guide explains how to use the Local P2P Network system where one device acts as 
+the HOST (server) and others act as CLIENTS that sync data without needing the internet.
+
+
+HOW IT WORKS
+============
+
+1. HOST DEVICE (One device runs the server)
+   - Runs: npm start
+   - Broadcasts itself on local WiFi network
+   - Stores main database (customers.db)
+   - Automatically syncs with all clients
+
+2. CLIENT DEVICES (Other phones/computers)
+   - Opens app in browser: http://192.168.x.x:3000
+   - Discovers the HOST on local network
+   - Connects and syncs database
+   - All changes sync in real-time
+
+
+QUICK START
+===========
+
+STEP 1: START THE HOST
+----------------------
+On the main computer (e.g., office computer):
+
+1. Open terminal/command prompt:
+   cd C:\Users\myraj\OneDrive\Desktop\UtilityPro
+
+2. Install dependencies (first time only):
+   npm install
+
+3. Start the server:
+   npm start
+
+You'll see:
+   ✓ Server running on: http://192.168.x.x:3000
+   ✓ Device ID: DEVICE-abc123xyz
+   ✓ P2P Hosting Active
+
+
+STEP 2: CONNECT CLIENT DEVICE
+------------------------------
+On another device (phone, tablet, or another computer):
+
+1. Make sure it's on the SAME WiFi network
+
+2. In a web browser, go to:
+   http://192.168.x.x:3000
+   (Replace 192.168.x.x with the IP from STEP 1)
+
+3. You'll see:
+   ✓ Connected to host
+   ✓ Auto-sync started
+
+
+STEP 3: USE THE APP
+-------------------
+- Add a customer on DEVICE 1
+- Check DEVICE 2 - it automatically syncs!
+- All data stays in sync across all devices
+
+
+USING P2P IN YOUR HTML FILES
+=============================
+
+Add this to each HTML file that needs P2P:
+
+<head>
+    <script src="p2p-client.js"></script>
+</head>
+
+<body>
+    <div id="p2p-status"></div>
+    <button onclick="discoverAndConnect()">Connect to P2P Network</button>
+    
+    <script>
+        // Create P2P client
+        const p2p = new P2PClient();
+        
+        async function discoverAndConnect() {
+            console.log('Looking for hosts...');
+            
+            // Discover available hosts
+            const hosts = await p2p.discoverHosts('192.168.1');
+            
+            if (hosts.length > 0) {
+                console.log(`Found ${hosts.length} host(s)`);
+                
+                // Connect to first host
+                const result = await p2p.connectToHost(hosts[0].url);
+                
+                if (result.success) {
+                    document.getElementById('p2p-status').innerHTML = 
+                        '✓ Connected to P2P Network';
+                    
+                    // Auto-sync every 5 seconds
+                    p2p.startAutoSync(5000);
+                }
+            } else {
+                alert('No hosts found. Make sure host server is running!');
+            }
+        }
+        
+        // On page load, try to connect
+        window.addEventListener('load', discoverAndConnect);
+    </script>
+</body>
+
+
+EXAMPLE: CUSTOMER FORM WITH P2P SYNC
+====================================
+
+<form id="customerForm">
+    <input type="text" id="firstName" placeholder="First Name" required>
+    <input type="text" id="lastName" placeholder="Last Name" required>
+    <input type="email" id="email" placeholder="Email">
+    <input type="tel" id="phone" placeholder="Phone" required>
+    <button type="submit">Add Customer</button>
+</form>
+
+<div id="p2p-status"></div>
+
+<script src="p2p-client.js"></script>
+<script>
+    const p2p = new P2PClient();
+    
+    // Initialize P2P connection
+    async function init() {
+        const hosts = await p2p.discoverHosts('192.168.1');
+        if (hosts.length > 0) {
+            await p2p.connectToHost(hosts[0].url);
+            updateStatus();
+        }
+    }
+    
+    // Handle form submission
+    document.getElementById('customerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+            firstName: document.getElementById('firstName').value,
+            lastName: document.getElementById('lastName').value,
+            email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value,
+            timestamp: new Date().toLocaleString('en-IN')
+        };
+        
+        // Send to host (via host API)
+        const response = await fetch(
+            `${p2p.hostURL}/api/customers/save`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            }
+        );
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Customer saved: ' + result.customerId);
+            document.getElementById('customerForm').reset();
+            
+            // Push change to P2P network
+            await p2p.pushChanges([{
+                action: 'INSERT',
+                table: 'customers',
+                data: formData
+            }]);
+        }
+    });
+    
+    function updateStatus() {
+        const status = p2p.getStatus();
+        document.getElementById('p2p-status').innerHTML = `
+            <h3>📡 P2P Network Status</h3>
+            <p><strong>Connected:</strong> ${status.isConnected ? '✓ Yes' : '✗ No'}</p>
+            <p><strong>Host:</strong> ${status.hostURL}</p>
+            <p><strong>Device:</strong> ${status.deviceId}</p>
+            <p><strong>Last Sync:</strong> ${status.lastSync}</p>
+            <p><strong>Auto-Sync:</strong> ${status.autoSyncActive ? '✓ Active' : '✗ Inactive'}</p>
+        `;
+    }
+    
+    window.addEventListener('load', init);
+</script>
+
+
+P2P API ENDPOINTS
+=================
+
+Available on Host:
+
+GET /api/p2p/info
+- Returns device and host info
+
+POST /api/p2p/register
+- Register a new client device
+- Body: { deviceId, deviceName, role, ip }
+
+POST /api/p2p/start-host
+- Start hosting (broadcast to network)
+
+POST /api/p2p/connect-host
+- Connect to a running host
+- Body: { hostURL }
+
+GET /api/p2p/devices
+- List all connected devices
+
+POST /api/p2p/db-info
+- Check if database needs sync
+- Body: { localHash, lastSync }
+
+POST /api/p2p/sync
+- Send changes to host
+- Body: { deviceId, changes }
+
+GET /api/p2p/changes?since=TIMESTAMP
+- Get changes since a time
+
+POST /api/p2p/receive
+- Receive broadcast from host
+
+
+TROUBLESHOOTING
+===============
+
+Q: "No hosts found" error
+A: 
+- Make sure host server is running (npm start)
+- Check that all devices are on same WiFi network
+- Try accessing http://192.168.x.x:3000 directly
+- Check firewall - allow port 3000
+
+Q: "Connection refused"
+A:
+- Host server crashed. Restart with: npm start
+- Wrong IP address. Check server startup message
+- Firewall blocking port 3000
+
+Q: "Sync not working"
+A:
+- Manual sync: Click "Sync Now" button
+- Check connection: 
+  const status = p2p.getStatus();
+  console.log(status);
+- Check server logs for errors
+
+Q: "Changes not appearing on other devices"
+A:
+- Wait a few seconds (auto-sync runs every 5 seconds)
+- Or call: await p2p.syncDatabase();
+- Or use: await p2p.pushChanges([...]);
+
+Q: "Can't find host on network"
+A:
+- Change sub-net in discoverHosts():
+  const hosts = await p2p.discoverHosts('192.168.0');
+- Or manually connect:
+  await p2p.connectToHost('http://192.168.1.50:3000');
+
+
+SETTING CUSTOM SUBNETS
+======================
+
+The default scans: 192.168.1
+
+If your WiFi uses different IPs:
+- ISP Router usually: 192.168.0.x or 192.168.1.x or 10.0.0.x
+
+Check your device's IP to find the subnet:
+Windows: ipconfig
+Mac/Linux: ifconfig
+
+Then update discoverHosts():
+const hosts = await p2p.discoverHosts('192.168.0');  // Change to your subnet
+
+
+OFFLINE SUPPORT
+===============
+
+Each device has a local copy of the database.
+- Works offline if not syncing
+- When back online, auto-syncs changes
+- Conflicts resolved by timestamp (latest wins)
+
+
+BEST PRACTICES
+==============
+
+1. Keep host device plugged in (won't sleep)
+2. Use WiFi (more stable than Bluetooth)
+3. Keep devices within 10-20 meters for best signal
+4. Sync before leaving the network area
+5. Test with 2-3 devices first before scaling
+6. Monitor server logs for issues
+
+
+ADVANCED: BROADCAST MESSAGES
+=============================
+
+Send messages to all connected devices:
+
+// On one client:
+await p2p.broadcast({
+    type: 'ALERT',
+    message: 'Important update!',
+    action: 'RELOAD_DATA'
+});
+
+// All other clients receive this message in real-time
+
+
+NEXT STEPS
+==========
+
+1. Test basic P2P connection (Host + 1 Client)
+2. Add customer and verify it syncs
+3. Connect a 3rd device to test broadcast
+4. Implement offline-first architecture
+5. Add conflict resolution for simultaneous edits
+6. Consider WiFi Direct for phone-to-phone
+
+Questions? Check server logs:
+npm start > shows all P2P connection logs

@@ -1,0 +1,170 @@
+SQLite + Local Network Server Setup Guide
+==========================================
+
+This guide explains how to use the new SQLite database with peer-to-peer local network communication.
+
+
+STEP 1: INSTALL DEPENDENCIES
+=============================
+
+1. Download and install Node.js (if not already installed):
+   https://nodejs.org/
+   - Choose LTS version
+   - Run installer and follow prompts
+
+2. Open terminal/command prompt in the UtilityPro folder:
+   cd C:\Users\myraj\OneDrive\Desktop\UtilityPro
+
+3. Install dependencies:
+   npm install
+
+
+STEP 2: START THE SERVER
+========================
+
+In the same terminal, run:
+   npm start
+
+You should see:
+   ========================================
+     UtilityPro SQLite Server
+   ========================================
+     ✓ Server running on: http://192.168.x.x:3000
+     ✓ Database: .../customers.db
+     ✓ Local Network Access Enabled
+   ========================================
+
+Keep this terminal open while working. The server must be running to use the app.
+
+
+STEP 3: GET YOUR LOCAL IP ADDRESS
+==================================
+
+From the server output, note your IP address (e.g., 192.168.x.x):
+
+Alternative ways to find it:
+- Windows: Open Command Prompt, type: ipconfig
+  Look for "IPv4 Address" (usually starts with 192.168.x.x or 10.x.x.x)
+
+
+STEP 4: UPDATE FRONTEND FILES
+=============================
+
+In each HTML file that uses the database (customer-info-form.html, etc.), 
+replace the Google Apps Script URL with your local server URL.
+
+BEFORE (Google Apps Script):
+   const APPS_SCRIPT_URL = 'https://script.google.com/macros/d/...';
+
+AFTER (SQLite Local Server):
+   const APPS_SCRIPT_URL = 'http://192.168.x.x:3000';
+   
+   (Replace 192.168.x.x with your actual IP address from STEP 3)
+
+
+STEP 5: TEST THE CONNECTION
+=============================
+
+1. Open your browser to: http://192.168.x.x:3000
+   You should see the API endpoints listed.
+
+2. Open customer-info-form.html locally
+3. Try adding a new customer
+4. Check the server terminal for activity logs
+
+
+ACCESSING FROM OTHER DEVICES ON YOUR NETWORK
+==============================================
+
+From other computers on your WiFi/LAN:
+- Use the SAME IP address: http://192.168.x.x:3000
+- All devices connected to your network can access the server
+
+
+USING ON MOBILE DEVICES
+========================
+
+1. Make sure phone/tablet is on same WiFi as computer
+2. Use the local IP address in browser: http://192.168.x.x:3000
+3. Works on any browser (Chrome, Safari, Firefox, etc.)
+
+
+DATABASE FILE LOCATION
+======================
+
+The SQLite database is stored at:
+   C:\Users\myraj\OneDrive\Desktop\UtilityPro\customers.db
+
+To back up your data:
+- Stop the server
+- Copy customers.db to a safe location
+- Restart server
+
+
+TROUBLESHOOTING
+===============
+
+Q: "Cannot connect to server"
+A: 
+- Make sure server.js is running (npm start)
+- Check firewall settings (allow Node.js)
+- Use correct IP address from STEP 3
+- Don't use 127.0.0.1 or localhost from other devices
+
+Q: "CORS error when accessing from browser"
+A: CORS is already enabled in server.js. Refresh page and try again.
+
+Q: "Port 3000 already in use"
+A: 
+- Another app is using port 3000
+- Stop that app or change PORT in server.js to 3001, 3002, etc.
+
+Q: "npm: command not found"
+A: Node.js not installed correctly. Reinstall from nodejs.org
+
+Q: "Database locked" error
+A: Multiple instances running. Close all terminal windows and start fresh.
+
+
+DATABASE STRUCTURE
+==================
+
+The database has 3 tables:
+
+1. customers - Main customer data
+   Columns: id, full_name, email, phone, address, aadhar, pan, etc.
+
+2. services - Service requests
+   Columns: id, customer_id, service, status, date
+
+3. activity_log - All operations logged
+   Columns: timestamp, type, description, details
+
+
+API ENDPOINTS
+=============
+
+POST   /api/customers/save          - Add new customer
+GET    /api/customers               - Get all customers
+GET    /api/customers/:id           - Get single customer
+PUT    /api/customers/:id           - Update customer
+DELETE /api/customers/:id           - Delete customer
+POST   /api/customers/search        - Search customers
+GET    /api/stats                   - Get statistics
+GET    /api/export/json             - Export all data
+
+
+DEVELOPMENT MODE (AUTO-RELOAD)
+===============================
+
+For automatic server restart when you edit files:
+   npm run dev
+
+This uses nodemon (already in devDependencies)
+
+
+QUESTIONS OR ISSUES?
+====================
+
+Check server terminal output for error messages.
+All activity is logged in the database for debugging.

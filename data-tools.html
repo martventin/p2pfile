@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data & Security Tools - UtilityPro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+
+    <style>
+        /* QR Specific Styles */
+        #qr-result-container {
+            text-align: center;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.03);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px dashed var(--border-color);
+        }
+        #qr-canvas { display: none; max-width: 100%; height: auto; }
+        .decode-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--drop-zone-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+        #qr-text-output { word-break: break-all; font-family: monospace; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">UtilityPro Security Hub</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div style="margin-bottom: 25px;">
+                <h1 style="margin-bottom: 5px; font-size: 1.5rem;">Data & Security Utilities</h1>
+                <p style="opacity: 0.8; font-size: 0.9rem;">HD QR Generator, Decoder, and Password Security Tools.</p>
+            </div>
+            
+            <div class="tools-grid">
+                
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <h3>✨ HD QR Generator</h3>
+                        <p>Create high-resolution scannable QR codes.</p>
+                    </div>
+                    <div class="controls">
+                        <input type="text" id="qr-input" placeholder="Enter link or text..." onkeyup="generateQR()">
+                        <div id="qr-result-container">
+                            <canvas id="qr-canvas"></canvas>
+                            <p id="qr-placeholder" style="opacity: 0.5; font-size: 0.85rem;">Preview will appear here</p>
+                        </div>
+                        <button class="btn success" id="qr-download-btn" style="display: none; width: 100%;" onclick="downloadQR()">📥 Download HD QR (.png)</button>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <h3>🔍 QR Decoder (Scanner)</h3>
+                        <p>Upload a QR image to read its hidden data.</p>
+                    </div>
+                    <div class="controls">
+                        <label class="btn outline" style="display: block; text-align: center; cursor: pointer;">
+                            📁 Upload QR Image
+                            <input type="file" id="qr-upload" accept="image/*" style="display: none;" onchange="decodeQR(event)">
+                        </label>
+                        
+                        <div id="decode-result" class="decode-area">
+                            <p style="font-size: 0.75rem; font-weight: bold; text-transform: uppercase; opacity: 0.7;">Decoded Content:</p>
+                            <p id="qr-text-output">Text will appear here...</p>
+                            <button class="action-btn" style="background: var(--primary-color); color: white; margin-top: 10px;" onclick="copyDecodedText()">📋 Copy Text</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <h3>🔑 Strong Password Gen</h3>
+                        <p>Generate secure random credentials locally.</p>
+                    </div>
+                    <div class="controls">
+                        <input type="text" id="pass-output" readonly placeholder="Click Generate..." style="text-align: center; font-family: monospace;">
+                        <div class="row row-space" style="margin-top: 10px;">
+                            <label style="font-size: 0.8rem;">Length: <span id="pass-len-val">16</span></label>
+                            <input type="range" id="pass-length" min="8" max="64" value="16" oninput="document.getElementById('pass-len-val').innerText = this.value">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <button class="btn outline" onclick="copyText('pass-output')">Copy</button>
+                        <button class="btn" onclick="generatePassword()">Generate</button>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <h3>{} JSON Formatter</h3>
+                        <p>Beautify and validate messy JSON data.</p>
+                    </div>
+                    <div class="controls">
+                        <textarea id="json-input" placeholder='Paste messy JSON here...' style="height: 100px; font-size: 0.85rem;"></textarea>
+                    </div>
+                    <div class="row">
+                        <button class="btn outline" onclick="copyText('json-input')">Copy</button>
+                        <button class="btn" onclick="formatJSON()">Beautify</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="tool-card" style="margin-top: 25px;">
+                <div class="tool-header"><h3>📜 Recent Activity</h3></div>
+                <div style="overflow-x: auto;">
+                    <table class="history-table">
+                        <thead><tr><th>Time</th><th>Action</th><th>Details</th><th>Status</th></tr></thead>
+                        <tbody id="history-log">
+                            <tr><td colspan="4" style="text-align: center; opacity: 0.6;">No activity yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        // --- 1. QR Generator (High Quality) ---
+        function generateQR() {
+            const input = document.getElementById('qr-input').value;
+            const canvas = document.getElementById('qr-canvas');
+            const downloadBtn = document.getElementById('qr-download-btn');
+            const placeholder = document.getElementById('qr-placeholder');
+
+            if (!input.trim()) {
+                canvas.style.display = "none";
+                downloadBtn.style.display = "none";
+                placeholder.style.display = "block";
+                return;
+            }
+
+            const qr = new QRious({
+                element: canvas,
+                value: input,
+                size: 600, // HD Quality
+                level: 'H'  // Best error correction
+            });
+
+            placeholder.style.display = "none";
+            canvas.style.display = "inline-block";
+            canvas.style.width = "180px"; // Visible size on dashboard
+            downloadBtn.style.display = "block";
+            logActivity("QR Created", input.substring(0, 20));
+        }
+
+        function downloadQR() {
+            const canvas = document.getElementById('qr-canvas');
+            const link = document.createElement('a');
+            link.download = 'UtilityPro-HD-QR.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            logActivity("QR Downloaded", "Saved as PNG");
+        }
+
+        // --- 2. QR Decoder ---
+        function decodeQR(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function() {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    const resultArea = document.getElementById('decode-result');
+                    const output = document.getElementById('qr-text-output');
+
+                    if (code) {
+                        resultArea.style.display = "block";
+                        output.innerText = code.data;
+                        logActivity("QR Decoded", "Scan successful");
+                    } else {
+                        alert("No QR Code found. Please use a clearer image.");
+                    }
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function copyDecodedText() {
+            const text = document.getElementById('qr-text-output').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Copied!");
+        }
+
+        // --- 3. Password Generator ---
+        function generatePassword() {
+            const length = document.getElementById('pass-length').value;
+            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+            let pass = "";
+            for (let i = 0; i < length; i++) {
+                pass += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('pass-output').value = pass;
+            logActivity("Password Gen", "Length: " + length);
+        }
+
+        // --- 4. JSON Formatter ---
+        function formatJSON() {
+            const area = document.getElementById('json-input');
+            try {
+                const obj = JSON.parse(area.value);
+                area.value = JSON.stringify(obj, null, 4);
+                logActivity("JSON Format", "Success");
+            } catch (e) {
+                alert("Invalid JSON data!");
+            }
+        }
+
+        // --- UI & Helpers ---
+        function toggleSidebar() {
+            document.body.classList.toggle('desktop-sidebar-hidden');
+            const sidebar = document.getElementById('sidebar');
+            if(sidebar) sidebar.classList.toggle('active');
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+        }
+
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        function copyText(id) {
+            const el = document.getElementById(id);
+            el.select();
+            document.execCommand('copy');
+            logActivity("Clipboard", "Text Copied");
+        }
+
+        function logActivity(action, details) {
+            const log = document.getElementById('history-log');
+            if (log.innerText.includes("No activity")) log.innerHTML = "";
+            const row = `<tr><td>${new Date().toLocaleTimeString()}</td><td><b>${action}</b></td><td style="color:var(--primary-color)">${details}</td><td><span class="badge">Success</span></td></tr>`;
+            log.insertAdjacentHTML('afterbegin', row);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Deposit Slip Maker - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Specific Styles for the Deposit Slip to make it look authentic */
+        .slip-wrapper { background: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; display: flex; justify-content: center;}
+        
+        .deposit-slip-container { 
+            display: flex; 
+            background: #ffffff; 
+            color: #000000; 
+            width: 100%; 
+            max-width: 1000px;
+            min-width: 850px; /* Forces wide layout like a real slip */
+            border: 2px solid #000000;
+            font-family: 'Arial', sans-serif;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        /* Left Side: Customer Copy */
+        .customer-copy { width: 33%; border-right: 2px dashed #000000; padding: 20px; }
+        /* Right Side: Bank Copy */
+        .bank-copy { width: 67%; padding: 20px; position: relative; }
+
+        .slip-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px; }
+        .slip-header h2 { margin: 0; font-size: 1.5rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;}
+        .slip-header p { margin: 4px 0 0 0; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;}
+
+        .slip-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; align-items: flex-end;}
+        .slip-label { font-weight: bold; margin-right: 5px; white-space: nowrap;}
+        .slip-value { border-bottom: 1px solid #000; flex-grow: 1; padding: 0 5px; font-family: monospace; font-size: 1.1rem; min-height: 20px;}
+        
+        /* Authentic Connected Acct Number Boxes */
+        .acct-boxes { display: flex; gap: 0; margin-top: 5px; margin-bottom: 15px;}
+        .acct-box { width: 26px; height: 26px; border: 1px solid #000; border-right: none; display: flex; justify-content: center; align-items: center; font-weight: bold; font-family: monospace; font-size: 1.2rem;}
+        .acct-box:last-child { border-right: 1px solid #000; }
+
+        /* Denomination Table */
+        .denominations-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; border: 2px solid #000;}
+        .denominations-table th, .denominations-table td { border: 1px solid #000; padding: 6px; text-align: right; }
+        .denominations-table th { background: #f1f5f9; text-align: center; font-weight: bold;}
+        .denominations-table td:first-child { text-align: center; font-weight: bold;}
+
+        .signatures { display: flex; justify-content: space-between; margin-top: 50px; font-size: 0.85rem; font-weight: bold; }
+        .sig-line { border-top: 1px solid #000; padding-top: 5px; width: 160px; text-align: center; }
+
+        /* =========================================
+           BLANK SLIP GHOST MODE
+           Makes user data invisible while keeping lines
+           ========================================= */
+        body.is-blank-mode .out-date,
+        body.is-blank-mode .out-name,
+        body.is-blank-mode .out-mobile,
+        body.is-blank-mode .out-pan,
+        body.is-blank-mode .out-total-num,
+        body.is-blank-mode .out-words,
+        body.is-blank-mode [id^="out-qty-"],
+        body.is-blank-mode [id^="out-sum-"] {
+            color: transparent !important;
+        }
+        body.is-blank-mode .acct-digit {
+            display: none !important;
+        }
+
+        /* =========================================
+           AGGRESSIVE PRINT CSS FOR PERFECT A4 
+           ========================================= */
+        @media print {
+            @page { size: landscape; margin: 10mm; }
+            body, html { background: white !important; padding: 0 !important; margin: 0 !important; }
+            
+            .sidebar, #sidebar-container, .overlay, header, .split-grid, .btn, .card-header { 
+                display: none !important; 
+            }
+
+            .main-content, .dashboard-content, .card, .slip-wrapper {
+                display: block !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important; background: transparent !important; max-width: none !important;
+            }
+
+            #print-area { width: 100%; display: flex; justify-content: center; }
+            
+            .deposit-slip-container { 
+                width: 270mm !important; min-width: 270mm !important; border: 2px solid #000 !important; page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+
+            .customer-copy { border-right: 2px dashed #000 !important; }
+            .denominations-table th { background: #f1f5f9 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem; display: none;" class="desktop-title">Customer Services</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div class="split-grid" style="grid-template-columns: 1fr; margin-bottom: 25px;">
+                <div style="margin-bottom: 5px;">
+                    <h1 style="margin-bottom: 5px; font-size: 1.5rem;">Bank Deposit Slip Maker</h1>
+                    <p style="opacity: 0.8; font-size: 0.9rem;">Auto-calculates notes and converts amounts to words for easy A4 printing.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">1. Deposit Details</div>
+                    
+                    <div class="row">
+                        <div>
+                            <label>Bank Name</label>
+                            <input list="bank-list" id="in-bank" placeholder="e.g. State Bank of India" oninput="updateSlip()" value="State Bank of India">
+                            <datalist id="bank-list">
+                                <option value="State Bank of India">
+                                <option value="Airtel Payment Bank">
+                                <option value="Punjab National Bank">
+                                <option value="Bank of Baroda">
+                                <option value="HDFC Bank">
+                                <option value="ICICI Bank">
+                                <option value="Uttar Bihar Gramin Bank">
+                                <option value="Dakshin Bihar Gramin Bank">
+                            </datalist>
+                        </div>
+                        <div>
+                            <label>Branch Name (Prints on Blank slips too)</label>
+                            <input type="text" id="in-branch" placeholder="e.g. Main Market Branch" oninput="updateSlip()">
+                        </div>
+                        <div>
+                            <label>Date</label>
+                            <input type="date" id="in-date" onchange="updateSlip()">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Account Number</label>
+                            <input type="text" id="in-acct" placeholder="Enter exactly 11 to 16 digits" oninput="updateSlip()" maxlength="16">
+                        </div>
+                        <div>
+                            <label>Account Holder Name</label>
+                            <input type="text" id="in-name" placeholder="Full Name" oninput="updateSlip()">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <label>Depositor Mobile No.</label>
+                            <input type="text" id="in-mobile" placeholder="10 Digit Mobile" maxlength="10" oninput="updateSlip()">
+                        </div>
+                        <div>
+                            <label>PAN Number (Mandatory if > ₹50,000)</label>
+                            <input type="text" id="in-pan" placeholder="ABCDE1234F" style="text-transform: uppercase;" maxlength="10" oninput="updateSlip()">
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+                    <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary-color);">Cash Denominations</h3>
+                    
+                    <div class="row">
+                        <div><label>₹ 500 x</label><input type="number" id="qty-500" value="0" min="0" oninput="updateSlip()"></div>
+                        <div><label>₹ 200 x</label><input type="number" id="qty-200" value="0" min="0" oninput="updateSlip()"></div>
+                        <div><label>₹ 100 x</label><input type="number" id="qty-100" value="0" min="0" oninput="updateSlip()"></div>
+                        <div><label>₹ 50 x</label><input type="number" id="qty-50" value="0" min="0" oninput="updateSlip()"></div>
+                    </div>
+                    <div class="row">
+                        <div><label>₹ 20 x</label><input type="number" id="qty-20" value="0" min="0" oninput="updateSlip()"></div>
+                        <div><label>₹ 10 x</label><input type="number" id="qty-10" value="0" min="0" oninput="updateSlip()"></div>
+                        <div><label>Coins (Total ₹)</label><input type="number" id="qty-coins" value="0" min="0" oninput="updateSlip()"></div>
+                        <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <button class="btn outline" onclick="clearForm()">🧹 Reset Values</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 15px;">
+                <div class="card-header" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <span>2. Print Preview</span>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn outline" style="padding: 6px 15px; font-size: 0.85rem;" onclick="downloadImage()">📱 Save Image</button>
+                        <button class="btn outline" style="padding: 6px 15px; font-size: 0.85rem; border-color: var(--warning-color); color: var(--warning-color);" onclick="printBlankSlip()">🖨️ Print BLANK Slip</button>
+                        <button class="btn" style="padding: 6px 15px; font-size: 0.85rem;" onclick="window.print()">🖨️ Print Filled Slip</button>
+                    </div>
+                </div>
+                
+                <div class="slip-wrapper">
+                    <div id="print-area">
+                        <div class="deposit-slip-container" id="slip-card">
+                            
+                            <div class="customer-copy">
+                                <div class="slip-header">
+                                    <h2 class="out-bank">STATE BANK OF INDIA</h2>
+                                    <p>Customer Counterfoil</p>
+                                </div>
+                                <div class="slip-row"><span class="slip-label">Branch:</span><span class="slip-value out-branch"></span></div>
+                                <div class="slip-row"><span class="slip-label">Date:</span><span class="slip-value out-date"></span></div>
+                                
+                                <div style="margin-top: 15px; font-weight: bold; font-size: 0.85rem;">Account Number:</div>
+                                <div class="acct-boxes out-acct-boxes">
+                                    </div>
+
+                                <div class="slip-row" style="margin-top: 15px;"><span class="slip-label">Name:</span><span class="slip-value out-name"></span></div>
+                                <div class="slip-row"><span class="slip-label">Mobile:</span><span class="slip-value out-mobile"></span></div>
+                                
+                                <div class="slip-row" style="margin-top: 25px;">
+                                    <span class="slip-label">Amount (₹):</span>
+                                    <span class="slip-value out-total-num" style="font-weight: bold; font-size: 1.4rem;">0.00/-</span>
+                                </div>
+                                
+                                <div style="font-size: 0.75rem; margin-top: 50px; border-top: 1px solid #000; padding-top: 5px; text-align: center;">Cashier / Teller Sign & Seal</div>
+                            </div>
+
+                            <div class="bank-copy">
+                                <div class="slip-header">
+                                    <h2 class="out-bank">STATE BANK OF INDIA</h2>
+                                    <p>Deposit Slip / Pay-in-Slip</p>
+                                </div>
+
+                                <div style="display: flex; justify-content: space-between;">
+                                    <div style="width: 58%; padding-right: 20px;">
+                                        <div class="slip-row"><span class="slip-label">Branch:</span><span class="slip-value out-branch"></span></div>
+                                        <div class="slip-row"><span class="slip-label">Date:</span><span class="slip-value out-date"></span></div>
+                                        
+                                        <div style="margin-top: 15px; font-weight: bold; font-size: 0.85rem;">Account Number:</div>
+                                        <div class="acct-boxes out-acct-boxes">
+                                            </div>
+
+                                        <div class="slip-row" style="margin-top: 15px;"><span class="slip-label">Name:</span><span class="slip-value out-name"></span></div>
+                                        <div class="slip-row"><span class="slip-label">Mobile:</span><span class="slip-value out-mobile"></span></div>
+                                        <div class="slip-row"><span class="slip-label">PAN No:</span><span class="slip-value out-pan"></span></div>
+
+                                        <div style="margin-top: 25px; font-size: 0.9rem;">
+                                            <span class="slip-label">Rupees in Words:</span><br>
+                                            <span class="slip-value out-words" style="display: block; width: 100%; min-height: 25px; font-style: italic; padding-top: 5px; font-weight: bold;">Zero Only</span>
+                                        </div>
+                                    </div>
+
+                                    <div style="width: 38%;">
+                                        <table class="denominations-table">
+                                            <thead>
+                                                <tr><th>Notes</th><th>Pieces</th><th>Rs.</th><th>P.</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr><td>500 x</td><td id="out-qty-500"></td><td id="out-sum-500"></td><td>00</td></tr>
+                                                <tr><td>200 x</td><td id="out-qty-200"></td><td id="out-sum-200"></td><td>00</td></tr>
+                                                <tr><td>100 x</td><td id="out-qty-100"></td><td id="out-sum-100"></td><td>00</td></tr>
+                                                <tr><td>50 x</td><td id="out-qty-50"></td><td id="out-sum-50"></td><td>00</td></tr>
+                                                <tr><td>20 x</td><td id="out-qty-20"></td><td id="out-sum-20"></td><td>00</td></tr>
+                                                <tr><td>10 x</td><td id="out-qty-10"></td><td id="out-sum-10"></td><td>00</td></tr>
+                                                <tr><td>Coins</td><td>-</td><td id="out-qty-coins"></td><td>00</td></tr>
+                                                <tr style="font-weight: bold; background: #f1f5f9; border-top: 2px solid #000;">
+                                                    <td colspan="2">TOTAL ₹</td><td class="out-total-num" style="font-size: 1.1rem;">0</td><td>00</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="signatures">
+                                    <div class="sig-line">Signature of Depositor</div>
+                                    <div class="sig-line">Cashier / Teller</div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    <script>
+        // --- Core App Setup ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('mobile-overlay').classList.toggle('active');
+        }
+
+        window.onload = function() {
+            if(window.innerWidth > 768) {
+                const title = document.querySelector('.desktop-title');
+                if(title) title.style.display = 'block';
+            }
+            
+            // Set today's date automatically
+            document.getElementById('in-date').valueAsDate = new Date();
+            updateSlip();
+        }
+
+        // Dark Mode Logic
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+
+        // --- Number to Words Converter ---
+        function numberToWords(num) {
+            if (num === 0) return "Zero Only";
+            const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            
+            const formatChunk = (n) => {
+                let str = '';
+                if (n > 99) { str += a[Math.floor(n / 100)] + ' Hundred '; n %= 100; }
+                if (n > 19) { str += b[Math.floor(n / 10)] + ' '; n %= 10; }
+                if (n > 0) { str += a[n] + ' '; }
+                return str.trim();
+            };
+
+            let words = '';
+            if (num >= 10000000) { words += formatChunk(Math.floor(num / 10000000)) + ' Crore '; num %= 10000000; }
+            if (num >= 100000) { words += formatChunk(Math.floor(num / 100000)) + ' Lakh '; num %= 100000; }
+            if (num >= 1000) { words += formatChunk(Math.floor(num / 1000)) + ' Thousand '; num %= 1000; }
+            if (num > 0) { words += formatChunk(num); }
+            
+            return words.trim() + " Rupees Only";
+        }
+
+        // --- Core Logic: Update Slip Live ---
+        function setTexts(className, text) {
+            document.querySelectorAll('.' + className).forEach(el => el.innerText = text);
+        }
+
+        function updateSlip() {
+            setTexts('out-bank', document.getElementById('in-bank').value || "BANK NAME");
+            setTexts('out-branch', document.getElementById('in-branch').value || "");
+            
+            const dateVal = document.getElementById('in-date').value;
+            if(dateVal) {
+                const d = new Date(dateVal);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                setTexts('out-date', `${day}/${month}/${year}`);
+            }
+
+            setTexts('out-name', document.getElementById('in-name').value || "");
+            setTexts('out-mobile', document.getElementById('in-mobile').value || "");
+            setTexts('out-pan', document.getElementById('in-pan').value.toUpperCase() || "");
+
+            // Connected Box Layout for Account Numbers
+            const acctNum = document.getElementById('in-acct').value;
+            let boxesHtml = "";
+            for(let i=0; i<16; i++) { 
+                const digit = acctNum[i] ? acctNum[i] : "";
+                // Wrap digit in a span so we can hide just the text during a blank print
+                boxesHtml += `<div class="acct-box"><span class="acct-digit">${digit}</span></div>`;
+            }
+            document.querySelectorAll('.out-acct-boxes').forEach(el => el.innerHTML = boxesHtml);
+
+            // Denominations
+            const vals = [500, 200, 100, 50, 20, 10];
+            let total = 0;
+
+            vals.forEach(val => {
+                const qty = parseInt(document.getElementById(`qty-${val}`).value) || 0;
+                const sum = qty * val;
+                total += sum;
+                
+                document.getElementById(`out-qty-${val}`).innerText = qty > 0 ? qty : "";
+                document.getElementById(`out-sum-${val}`).innerText = sum > 0 ? sum : "";
+            });
+
+            const coins = parseInt(document.getElementById('qty-coins').value) || 0;
+            total += coins;
+            document.getElementById('out-qty-coins').innerText = coins > 0 ? coins : "";
+
+            setTexts('out-total-num', total > 0 ? total : "0");
+            setTexts('out-words', numberToWords(total));
+        }
+
+        function clearForm() {
+            document.getElementById('in-acct').value = "";
+            document.getElementById('in-name').value = "";
+            document.getElementById('in-mobile').value = "";
+            document.getElementById('in-pan').value = "";
+            
+            const vals = [500, 200, 100, 50, 20, 10, 'coins'];
+            vals.forEach(val => document.getElementById(`qty-${val}`).value = "0");
+            
+            updateSlip();
+        }
+
+        // --- THE MAGIC GHOST PRINT (Blank Slip) ---
+        function printBlankSlip() {
+            // Add the special CSS class that turns all data transparent
+            document.body.classList.add('is-blank-mode');
+            
+            // Open print dialog
+            window.print();
+        }
+
+        // When the print dialog closes, automatically remove the transparent class
+        window.onafterprint = function() {
+            document.body.classList.remove('is-blank-mode');
+        }
+
+        // --- Save Image Logic ---
+        function downloadImage() {
+            const slipDiv = document.getElementById('slip-card'); 
+            const custName = document.getElementById('in-name').value || "Customer";
+            
+            html2canvas(slipDiv, {
+                scale: 2, 
+                backgroundColor: "#ffffff",
+                logging: false
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `${custName}_Deposit_Slip.jpg`;
+                link.href = imgData;
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

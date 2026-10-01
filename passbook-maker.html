@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Passbook Maker - UtilityPro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Barcode Font */
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
+
+        /* Search Section Styling */
+        .search-container {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid var(--primary-color);
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .search-container input { margin-bottom: 0; flex: 1; }
+
+        .passbook-preview-area { background: #cbd5e1; padding: 30px; border-radius: 8px; overflow-x: auto; display: flex; justify-content: center; }
+        
+        .passbook-card {
+            background: #ffffff;
+            color: #000000;
+            width: 140mm;
+            height: 95mm; 
+            border: 4px double #000000; 
+            padding: 10px 15px;
+            font-family: 'Times New Roman', Times, serif; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 3rem;
+            color: rgba(0, 0, 0, 0.05); 
+            white-space: nowrap;
+            font-weight: 900;
+            z-index: 0;
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+
+        .pb-content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%;}
+        .pb-header { display: flex; align-items: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; gap: 10px;}
+        .bank-logo-placeholder { width: 38px; height: 38px; border: 1px solid #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.6rem; font-family: Arial, sans-serif; text-align: center; font-weight: bold; background: #f8fafc; overflow: hidden;}
+        .bank-logo-placeholder img { width: 100%; height: 100%; object-fit: contain; display: none; background: #fff;}
+        .header-text { flex-grow: 1; text-align: center; }
+        .header-text h2 { margin: 0; font-size: 1.3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; font-family: 'Arial Black', Impact, sans-serif;}
+        .header-text p { margin: 2px 0 0 0; font-size: 0.75rem; font-weight: bold; font-family: Arial, sans-serif;}
+
+        .pb-body { display: flex; justify-content: space-between; gap: 15px; flex-grow: 1;}
+        .pb-details { width: 73%; font-size: 0.8rem; font-family: Arial, sans-serif; display: flex; flex-direction: column; justify-content: space-around;}
+        .pb-data-table { width: 100%; border-collapse: collapse; }
+        .pb-data-table td { padding: 3px 0; vertical-align: bottom; }
+        .pb-data-table .label { font-weight: bold; width: 35%; white-space: nowrap; }
+        .pb-data-table .colon { width: 5%; text-align: center; font-weight: bold;}
+        .pb-data-table .value { border-bottom: 1px solid #000; font-weight: bold; font-family: monospace; font-size: 0.95rem; width: 60%; padding-left: 5px;}
+        
+        .photo-box { width: 32mm; height: 40mm; border: 1px solid #000; display: flex; justify-content: center; align-items: center; font-size: 0.7rem; color: #666; background-color: #f1f5f9; overflow: hidden; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .auth-sign-box { width: 100%; height: 20mm; border-top: 1px dashed #000; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; font-size: 0.65rem; font-weight: bold; text-align: center; padding-top: 5px; }
+
+        .pb-footer { border-top: 1px solid #000; padding-top: 3px; display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto;}
+        .pb-barcode { font-family: 'Libre Barcode 39', cursive, sans-serif; font-size: 2rem; line-height: 0.8; margin-bottom: -5px;}
+        
+        .photo-upload-btn { background: var(--primary-color); color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; display: inline-block; text-align: center; width: 100%;}
+
+        #sync-status { font-size: 0.8rem; font-weight: bold; color: var(--primary-color); margin-top: 5px; display: none; }
+
+        @media print {
+            @page { size: portrait; margin: 10mm; }
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div style="font-weight: 600; font-size: 1.2rem;" class="desktop-title">Passbook Printer Hub</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div style="font-weight: 500;">👋 Admin</div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+            <div class="search-container">
+                <div style="flex: 1;">
+                    <label>🔍 Search Customer (Enter Mobile No.)</label>
+                    <input type="number" id="db-search-input" placeholder="Type 10 digit mobile number..." onkeyup="searchFromDB()">
+                    <div id="sync-status">Checking Database...</div>
+                </div>
+                <button class="btn success" style="width: auto; height: 45px;" onclick="fetchCloudData()">🔄 Refresh DB</button>
+            </div>
+
+            <div class="split-grid" style="grid-template-columns: 1fr;">
+                <div class="card">
+                    <div class="card-header">Account Details Entry</div>
+                    
+                    <div class="row">
+                        <div>
+                            <label>Bank Name</label>
+                            <input list="bank-list" id="in-bank" value="Airtel Payments Bank" oninput="updatePassbook()">
+                            <datalist id="bank-list">
+                                <option value="Airtel Payments Bank">
+                                <option value="State Bank of India">
+                                <option value="Punjab National Bank">
+                            </datalist>
+                        </div>
+                        <div>
+                            <label>Branch Name</label>
+                            <input type="text" id="in-branch" placeholder="e.g. Madhubani Branch" oninput="updatePassbook()">
+                        </div>
+                        <div>
+                            <label>IFSC Code</label>
+                            <input type="text" id="in-ifsc" placeholder="e.g. AIRP0000001" oninput="updatePassbook()">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div><label>Account Number</label><input type="text" id="in-acct" oninput="updatePassbook()"></div>
+                        <div><label>CIF / Customer ID</label><input type="text" id="in-cif" oninput="updatePassbook()"></div>
+                        <div><label>Issue Date</label><input type="date" id="in-date" onchange="updatePassbook()"></div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+                    <div class="row">
+                        <div><label>Account Holder Name</label><input type="text" id="in-name" oninput="updatePassbook()"></div>
+                        <div><label>S/o, D/o, W/o</label><input type="text" id="in-guardian" oninput="updatePassbook()"></div>
+                    </div>
+
+                    <div class="row">
+                        <div style="flex: 2;"><label>Full Address</label><input type="text" id="in-address" oninput="updatePassbook()"></div>
+                        <div style="flex: 1;"><label>Mobile Number</label><input type="text" id="in-mobile" oninput="updatePassbook()"></div>
+                    </div>
+
+                    <div class="row" style="margin-top: 15px; gap: 15px;">
+                        <label class="photo-upload-btn" style="flex: 1;">📸 Customer Photo <input type="file" accept="image/*" style="display: none;" onchange="loadPhoto(this)"></label>
+                        <label class="photo-upload-btn" style="flex: 1; background: #475569;">🏛️ Bank Logo <input type="file" accept="image/*" style="display: none;" onchange="loadBankLogo(this)"></label>
+                        <button class="btn outline" style="flex: 1;" onclick="clearForm()">🧹 Reset</button>
+                    </div>
+                </div>
+
+                <div class="card" style="padding: 15px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between;">
+                        <span>Live Preview</span>
+                        <div>
+                            <button class="btn success" style="padding: 6px 15px;" onclick="downloadImage()">Save JPG</button>
+                            <button class="btn" style="padding: 6px 15px;" onclick="window.print()">Print PB</button>
+                        </div>
+                    </div>
+                    
+                    <div class="passbook-preview-area">
+                        <div id="print-area">
+                            <div class="passbook-card" id="passbook-card">
+                                <div class="watermark out-bank">BANK NAME</div>
+                                <div class="pb-content-wrapper">
+                                    <div class="pb-header">
+                                        <div class="bank-logo-placeholder" id="bank-logo-box"><span id="logo-text">LOGO</span><img id="out-bank-logo" src=""></div>
+                                        <div class="header-text">
+                                            <h2 class="out-bank">BANK NAME</h2>
+                                            <p>Branch: <span class="out-branch">---</span> | IFSC: <span class="out-ifsc">---</span></p>
+                                        </div>
+                                    </div>
+                                    <div class="pb-body">
+                                        <div class="pb-details">
+                                            <table class="pb-data-table">
+                                                <tr><td class="label">A/C Number</td><td class="colon">:</td><td class="value out-acct"></td></tr>
+                                                <tr><td class="label">CIF / Cust ID</td><td class="colon">:</td><td class="value out-cif"></td></tr>
+                                                <tr><td class="label">Name</td><td class="colon">:</td><td class="value out-name"></td></tr>
+                                                <tr><td class="label">S/o, D/o, W/o</td><td class="colon">:</td><td class="value out-guardian"></td></tr>
+                                                <tr><td class="label">Address</td><td class="colon">:</td><td class="value out-address"></td></tr>
+                                                <tr><td class="label">Mobile No</td><td class="colon">:</td><td class="value out-mobile"></td></tr>
+                                                <tr><td class="label">Issue Date</td><td class="colon">:</td><td class="value out-date"></td></tr>
+                                            </table>
+                                        </div>
+                                        <div class="pb-sidebar">
+                                            <div class="photo-box"><span id="photo-placeholder">PHOTO</span><img id="out-photo" src=""></div>
+                                            <div class="auth-sign-box">Authorized Signatory<br>(Bank Seal)</div>
+                                        </div>
+                                    </div>
+                                    <div class="pb-footer">
+                                        <div style="font-size: 0.65rem;">Computer Generated ID</div>
+                                        <div class="pb-barcode out-barcode">*000000*</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="sidebar.js"></script>
+    <script src="config.js"></script>
+    <script src="p2p-client.js"></script>
+    <script src="db-api.js"></script>
+    <script>
+        let dbData = [];
+        let db = null;
+        let p2pClient = null;
+
+        // --- Initialize P2P Database ---
+        async function initializeDatabase() {
+            p2pClient = new P2PClient();
+            const result = await p2pClient.connectToHost(SERVER_URL);
+            if (result.success) {
+                db = new DatabaseAPI(SERVER_URL, p2pClient);
+                p2pClient.startAutoSync(5000);
+            } else {
+                db = new DatabaseAPI(SERVER_URL);
+            }
+        }
+
+        // --- Fetch Database from P2P SQLite ---
+        async function fetchCloudData() {
+            if (!db) await initializeDatabase();
+            if (!db) return alert("Could not connect to database!");
+            
+            document.getElementById('sync-status').style.display = 'block';
+            document.getElementById('sync-status').innerText = "Updating Database...";
+            
+            try {
+                const result = await db.getAllCustomers(1000);
+                if (result.success) {
+                    dbData = result.customers;
+                    document.getElementById('sync-status').innerText = "✅ DB Ready (" + dbData.length + " customers)";
+                    setTimeout(() => document.getElementById('sync-status').style.display = 'none', 3000);
+                } else {
+                    alert("No data in database");
+                }
+            } catch (error) {
+                document.getElementById('sync-status').innerText = "❌ Connection Failed";
+            }
+        }
+
+        // --- Search Function ---
+        function searchFromDB() {
+            const val = document.getElementById('db-search-input').value.trim();
+            if(val.length >= 10) {
+                const found = dbData.find(c => (c.phone === val || c.mobile === val) && c.firstName !== "DELETED");
+                if(found) {
+                    document.getElementById('in-name').value = (found.firstName || '') + ' ' + (found.lastName || '');
+                    document.getElementById('in-mobile').value = found.phone;
+                    document.getElementById('in-address').value = found.address || '';
+                    updatePassbook();
+                    document.getElementById('sync-status').style.display = 'block';
+                    document.getElementById('sync-status').innerText = "✅ Customer Loaded!";
+                } else {
+                    document.getElementById('sync-status').innerText = "❓ Customer Not Found";
+                }
+            }
+        }
+
+        // --- Core Passbook Logic ---
+        function setTexts(className, text) {
+            document.querySelectorAll('.' + className).forEach(el => el.innerText = text);
+        }
+
+        function updatePassbook() {
+            setTexts('out-bank', document.getElementById('in-bank').value || "BANK NAME");
+            setTexts('out-branch', document.getElementById('in-branch').value || "---");
+            setTexts('out-ifsc', document.getElementById('in-ifsc').value.toUpperCase() || "---");
+            
+            const acctNum = document.getElementById('in-acct').value || "";
+            setTexts('out-acct', acctNum);
+            setTexts('out-barcode', acctNum ? "*" + acctNum + "*" : "*000000*");
+            
+            setTexts('out-cif', document.getElementById('in-cif').value || "");
+            setTexts('out-name', document.getElementById('in-name').value || "");
+            setTexts('out-guardian', document.getElementById('in-guardian').value || "");
+            setTexts('out-address', document.getElementById('in-address').value || "");
+            setTexts('out-mobile', document.getElementById('in-mobile').value || "");
+
+            const dVal = document.getElementById('in-date').value;
+            if(dVal) {
+                const d = new Date(dVal);
+                setTexts('out-date', d.toLocaleDateString('en-GB'));
+            }
+        }
+
+        function loadPhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.getElementById('out-photo');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('photo-placeholder').style.display = 'none';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function loadBankLogo(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.getElementById('out-bank-logo');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('logo-text').style.display = 'none';
+                    document.getElementById('bank-logo-box').style.border = 'none';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function clearForm() {
+            document.querySelectorAll('input').forEach(i => i.type !== 'date' ? i.value = "" : null);
+            updatePassbook();
+        }
+
+        window.onload = async function() {
+            document.getElementById('in-date').valueAsDate = new Date();
+            updatePassbook();
+            
+            // Initialize P2P database
+            await initializeDatabase();
+            fetchCloudData();
+
+            // Check if data came from CRM
+            const crmData = localStorage.getItem('temp_passbook_data');
+            if(crmData) {
+                const data = JSON.parse(crmData);
+                document.getElementById('in-name').value = data.name;
+                document.getElementById('in-mobile').value = data.mobile;
+                document.getElementById('in-address').value = data.address;
+                updatePassbook();
+                localStorage.removeItem('temp_passbook_data');
+            }
+        }
+
+        function downloadImage() {
+            const slipDiv = document.getElementById('passbook-card'); 
+            html2canvas(slipDiv, { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Passbook_${Date.now()}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

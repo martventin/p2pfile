@@ -1,0 +1,22 @@
+{
+  "name": "UtilityPro CSC Toolkit",
+  "short_name": "UtilityPro",
+  "description": "Serverless utilities for AEPS, NSDL, and File Processing.",
+  "start_url": "./admin.html",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
